@@ -19,6 +19,7 @@ import {Input} from "../ui/input";
 import DatePicker from "react-datepicker";
 import Loading from "./Loading";
 import {useStreamVideoClient} from "@stream-io/video-react-sdk";
+import {createStreamCallServer} from "@/actions/stream.actions";
 import {toast} from "sonner";
 import DateAndTime from "./DateAndTime";
 import Image from "next/image";
@@ -100,6 +101,9 @@ const MainMenu = () => {
   const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isNewMeetingOpen, setIsNewMeetingOpen] = useState(false);
+  const [isJoinMeetingOpen, setIsJoinMeetingOpen] = useState(false);
+  const [isScheduleMeetingOpen, setIsScheduleMeetingOpen] = useState(false);
 
   // Fetch courses from the endpoint
   useEffect(() => {
@@ -150,7 +154,8 @@ const MainMenu = () => {
   const createMeeting = async () => {
     if (status !== "authenticated" || !session?.user)
       return router.push("/login");
-    if (!client) return router.push("/");
+
+    const currentMeetingState = meetingState;
 
     try {
       if (!values.dateTime || !values.courseId || !values.title) {
@@ -158,30 +163,44 @@ const MainMenu = () => {
           "Please provide all required fields: date, course, and title",
           {
             duration: 3000,
-            className: "bg-gray-300 rounded-3xl py-8 px-5 justify-center",
+            className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
           },
         );
+        setIsCreatingMeeting(false);
+        setMeetingState(undefined);
         return;
       }
 
       const id = crypto.randomUUID();
-      const call = client.call("default", id);
-      if (!call) throw new Error("Failed to create meeting");
       const startsAt =
         values.dateTime.toISOString() || new Date(Date.now()).toISOString();
       const description = values.description || "No Description";
-      await call.getOrCreate({
-        data: {
-          starts_at: startsAt,
-          custom: {
-            description,
-          },
-        },
-      });
 
-      await call.updateCallMembers({
-        update_members: [{user_id: String(session.user.id)}],
-      });
+      // 1. Create Stream call via server action (REST API - bypasses browser WebSocket initial connection failures)
+      try {
+        await createStreamCallServer(id, startsAt, description);
+      } catch (srvErr) {
+        console.warn("[MainMenu] Server call creation error:", srvErr);
+      }
+
+      // 2. Try frontend Stream client initialization if client exists
+      if (client) {
+        try {
+          const call = client.call("default", id);
+          if (call) {
+            await call.getOrCreate({
+              data: {
+                starts_at: startsAt,
+                custom: {
+                  description,
+                },
+              },
+            });
+          }
+        } catch (wsErr) {
+          console.warn("[MainMenu] Frontend WS call creation non-fatal error:", wsErr);
+        }
+      }
 
       // API call to create live session
       const response = await fetch("/api/teacher/live-session", {
@@ -194,7 +213,7 @@ const MainMenu = () => {
           title: values.title,
           scheduled_at: startsAt,
           duration_minutes: values.duration,
-          join_url: `main/meeting/${call.id}`,
+          join_url: `main/meeting/${id}`,
         }),
       });
 
@@ -213,27 +232,26 @@ const MainMenu = () => {
         }
       }
 
-      const data = await response.json();
+      setIsNewMeetingOpen(false);
+      setIsScheduleMeetingOpen(false);
+      setMeetingState(undefined);
+      setValues(initialValues);
 
-      if (meetingState === "Instant") {
-        router.push(`/main/meeting/${call.id}`);
+      if (currentMeetingState === "Instant") {
         toast.success("Setting up your meeting", {
           duration: 3000,
           className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
         });
+        router.push(`/main/meeting/${id}`);
       }
 
-      if (meetingState === "Schedule") {
-        router.push("/main/home/upcoming");
-        toast.success(`Your meeting is scheduled at ${values.dateTime}`, {
+      if (currentMeetingState === "Schedule") {
+        toast.success(`Your meeting is scheduled`, {
           duration: 5000,
           className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
         });
+        router.push("/main/home/upcoming");
       }
-
-      // Reset meeting state to allow subsequent creations
-      setMeetingState(undefined);
-      setValues(initialValues); // Reset form
     } catch (err: any) {
       const errorMessage = err.message || "An unexpected error occurred";
       toast.error(`Failed to create meeting: ${errorMessage}`, {
@@ -241,7 +259,7 @@ const MainMenu = () => {
         className: "!bg-gray-300 !rounded-3xl !py-8 !px-5 !justify-center",
       });
       console.error("[MainMenu] Error creating meeting:", err);
-      setMeetingState(undefined); // Reset even on error
+      setMeetingState(undefined);
     } finally {
       setIsCreatingMeeting(false);
     }
@@ -265,6 +283,9 @@ const MainMenu = () => {
     } else {
       meetingPath = `/main/meeting/${values.link}`;
     }
+
+    setIsJoinMeetingOpen(false);
+    router.push(meetingPath);
 
     router.push(meetingPath);
     toast.success("Joining meeting...", {
@@ -406,309 +427,6 @@ const MainMenu = () => {
   const isTeacher = session.user.role === "teacher";
 
   return (
-    // <div>
-    //   <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
-    //     <div className="flex flex-col gap-3 items-center justify-center md:items-start menu-item-card">
-    //       {isLoading ? (
-    //         <p>Loading meetings...</p>
-    //       ) : nearestUpcomingMeeting ? (
-    //         <>
-    //           <h2 className="bg-blue-100 w-full max-w-[300px] sm:max-w-[273px] rounded-2xl p-3 sm:p-4 text-center text-sm sm:text-base font-light">
-    //             Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
-    //           </h2>
-    //           <div className="flex gap-2 sm:gap-3">
-    //             {nearestUpcomingMeeting.join_url &&
-    //               (isTeacher ? (
-    //                 <a
-    //                   href="/main/home/upcoming"
-    //                   className="text-blue-700 text-sm sm:text-base">
-    //                   View More
-    //                 </a>
-    //               ) : (
-    //                 <a
-    //                   href="/main/home/upcoming"
-    //                   className="text-blue-700 text-sm sm:text-base">
-    //                   Join Meeting
-    //                 </a>
-    //               ))}
-    //             <button
-    //               onClick={() => {
-    //                 setIsDeleting(true);
-    //                 handleDeleteMeeting();
-    //               }}
-    //               disabled={isDeleting}
-    //               className="bg-transparent flex text-destructive items-center gap-2 py-0 text-sm sm:text-base">
-    //               {isDeleting ? (
-    //                 <>
-    //                   <Spinner size="sm" className="text-destructive" />
-    //                   Deleting...
-    //                 </>
-    //               ) : (
-    //                 <>
-    //                   <Trash2 size={16} />
-    //                   Delete
-    //                 </>
-    //               )}
-    //             </button>
-    //           </div>
-    //         </>
-    //       ) : (
-    //         <p>No upcoming meetings</p>
-    //       )}
-    //     </div>
-
-    //     {/* New Meeting */}
-    //     {isTeacher && (
-    //       <Dialog>
-    //         <DialogTrigger>
-    //           <MenuItemCard
-    //             img="/new-meeting.svg"
-    //             title="New Meeting"
-    //             bgColor="bg-orange-500"
-    //             hoverColor="hover:bg-orange-800"
-    //           />
-    //         </DialogTrigger>
-    //         <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
-    //           <DialogHeader>
-    //             <DialogTitle className="text-lg sm:text-2xl font-black leading-relaxed text-center">
-    //               Start an Instant Meeting 🤝
-    //             </DialogTitle>
-    //             <DialogDescription className="text-center text-xs sm:text-sm">
-    //               Fill in the details to start an instant meeting
-    //             </DialogDescription>
-    //           </DialogHeader>
-    //           <div className="flex flex-col gap-3 sm:gap-4 mt-4">
-    //             <span className="text-xs sm:text-sm">Meeting Title</span>
-    //             <Input
-    //               type="text"
-    //               placeholder="Enter meeting title"
-    //               value={values.title}
-    //               onChange={(e) =>
-    //                 setValues({...values, title: e.target.value})
-    //               }
-    //               className="inputs w-full text-sm sm:text-base"
-    //             />
-    //             <span className="text-xs sm:text-sm">Course</span>
-    //             <select
-    //               value={values.courseId || ""}
-    //               onChange={(e) =>
-    //                 setValues({...values, courseId: Number(e.target.value)})
-    //               }
-    //               className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-    //               required>
-    //               <option value="" disabled>
-    //                 Select a course
-    //               </option>
-    //               {courses.map((course) => (
-    //                 <option key={course.id} value={course.id}>
-    //                   {course.name} ({course.classroom})
-    //                 </option>
-    //               ))}
-    //             </select>
-    //             <span className="text-xs sm:text-sm">
-    //               Add a meeting description
-    //             </span>
-    //             <Textarea
-    //               className="inputs w-full p-2 sm:p-3 text-sm sm:text-base"
-    //               rows={4}
-    //               value={values.description}
-    //               onChange={(e) =>
-    //                 setValues({...values, description: e.target.value})
-    //               }
-    //             />
-    //             <span className="text-xs sm:text-sm">Duration (minutes)</span>
-    //             <Input
-    //               type="number"
-    //               placeholder="Enter duration in minutes"
-    //               value={values.duration}
-    //               onChange={(e) =>
-    //                 setValues({
-    //                   ...values,
-    //                   duration: parseInt(e.target.value) || 60,
-    //                 })
-    //               }
-    //               className="inputs w-full text-sm sm:text-base"
-    //             />
-    //             <Button
-    //               className={`mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer ${
-    //                 isCreatingMeeting ? "opacity-50 cursor-not-allowed" : ""
-    //               }`}
-    //               onClick={() => {
-    //                 setIsCreatingMeeting(true);
-    //                 setMeetingState("Instant");
-    //               }}
-    //               disabled={isCreatingMeeting}>
-    //               {isCreatingMeeting ? (
-    //                 <div className="flex items-center justify-center">
-    //                   <Spinner size="sm" className="mr-2 text-white" />
-    //                   Creating Meeting...
-    //                 </div>
-    //               ) : (
-    //                 "Create Meeting"
-    //               )}
-    //             </Button>
-    //           </div>
-    //         </DialogContent>
-    //       </Dialog>
-    //     )}
-
-    //     {/* Join Meeting */}
-    //     <Dialog>
-    //       <DialogTrigger>
-    //         <MenuItemCard
-    //           img="/join-meeting.svg"
-    //           title="Join Meeting"
-    //           bgColor="bg-blue-600"
-    //           hoverColor="hover:bg-blue-800"
-    //         />
-    //       </DialogTrigger>
-    //       <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
-    //         <DialogHeader>
-    //           <DialogTitle className="text-lg sm:text-2xl font-black text-center mb-3 sm:mb-4">
-    //             Type the Meeting link here
-    //           </DialogTitle>
-    //           <DialogDescription className="text-center text-xs sm:text-sm">
-    //             Enter the meeting link or ID to join
-    //           </DialogDescription>
-    //         </DialogHeader>
-    //         <div className="flex flex-col gap-3 sm:gap-4">
-    //           <Input
-    //             type="text"
-    //             placeholder="Meeting Link or Meeting ID"
-    //             value={values.link}
-    //             onChange={(e) => setValues({...values, link: e.target.value})}
-    //             className="inputs w-full text-sm sm:text-base"
-    //           />
-    //           <Button
-    //             className={`mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer ${
-    //               isJoining ? "opacity-50 cursor-not-allowed" : ""
-    //             }`}
-    //             onClick={() => {
-    //               setIsJoining(true);
-    //               joinMeeting();
-    //             }}
-    //             disabled={isJoining}>
-    //             {isJoining ? (
-    //               <div className="flex items-center justify-center">
-    //                 <Spinner size="sm" className="mr-2 text-white" />
-    //                 Joining Meeting...
-    //               </div>
-    //             ) : (
-    //               "Join Meeting"
-    //             )}
-    //           </Button>
-    //         </div>
-    //       </DialogContent>
-    //     </Dialog>
-
-    //     {/* Schedule */}
-    //     {isTeacher && (
-    //       <Dialog>
-    //         <DialogTrigger>
-    //           <MenuItemCard
-    //             img="/calendar.svg"
-    //             title="Schedule"
-    //             bgColor="bg-blue-600"
-    //             hoverColor="hover:bg-blue-800"
-    //           />
-    //         </DialogTrigger>
-    //         <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
-    //           <DialogHeader>
-    //             <DialogTitle className="text-lg sm:text-2xl font-black text-center mb-3 sm:mb-4">
-    //               Schedule Meeting
-    //             </DialogTitle>
-    //             <DialogDescription className="text-center text-xs sm:text-sm">
-    //               Fill in the details to schedule a meeting
-    //             </DialogDescription>
-    //           </DialogHeader>
-    //           <div className="flex flex-col gap-3 sm:gap-4">
-    //             <span className="text-xs sm:text-sm">Meeting Title</span>
-    //             <Input
-    //               type="text"
-    //               placeholder="Enter meeting title"
-    //               value={values.title}
-    //               onChange={(e) =>
-    //                 setValues({...values, title: e.target.value})
-    //               }
-    //               className="inputs w-full text-sm sm:text-base"
-    //             />
-    //             <span className="text-xs sm:text-sm">Course</span>
-    //             <select
-    //               value={values.courseId || ""}
-    //               onChange={(e) =>
-    //                 setValues({...values, courseId: Number(e.target.value)})
-    //               }
-    //               className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-    //               required>
-    //               <option value="" disabled>
-    //                 Select a course
-    //               </option>
-    //               {courses.map((course) => (
-    //                 <option key={course.id} value={course.id}>
-    //                   {course.name} ({course.classroom})
-    //                 </option>
-    //               ))}
-    //             </select>
-    //             <span className="text-xs sm:text-sm">
-    //               Add a meeting description
-    //             </span>
-    //             <Textarea
-    //               className="inputs w-full p-2 sm:p-3 text-sm sm:text-base"
-    //               rows={4}
-    //               value={values.description}
-    //               onChange={(e) =>
-    //                 setValues({...values, description: e.target.value})
-    //               }
-    //             />
-    //             <span className="text-xs sm:text-sm">Duration (minutes)</span>
-    //             <Input
-    //               type="number"
-    //               placeholder="Enter duration in minutes"
-    //               value={values.duration}
-    //               onChange={(e) =>
-    //                 setValues({
-    //                   ...values,
-    //                   duration: parseInt(e.target.value) || 60,
-    //                 })
-    //               }
-    //               className="inputs w-full text-sm sm:text-base"
-    //             />
-    //             <span className="text-xs sm:text-sm">Select Date and Time</span>
-    //             <DatePicker
-    //               preventOpenOnFocus
-    //               selected={values.dateTime}
-    //               onChange={(date) => setValues({...values, dateTime: date!})}
-    //               showTimeSelect
-    //               timeIntervals={15}
-    //               timeCaption="time"
-    //               dateFormat="MMMM d, yyyy h:mm aa"
-    //               className="inputs w-full rounded p-2 text-sm sm:text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-    //             />
-    //             <Button
-    //               className={`mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-blue-700 py-2 sm:py-3 px-4 sm:px-6 hover:bg-blue-900 hover:scale-105 transition ease-in-out duration-500 cursor-pointer ${
-    //                 isCreatingMeeting ? "opacity-50 cursor-not-allowed" : ""
-    //               }`}
-    //               onClick={() => {
-    //                 setIsCreatingMeeting(true);
-    //                 setMeetingState("Schedule");
-    //               }}
-    //               disabled={isCreatingMeeting}>
-    //               {isCreatingMeeting ? (
-    //                 <div className="flex items-center justify-center">
-    //                   <Spinner size="sm" className="mr-2 text-white" />
-    //                   Scheduling...
-    //                 </div>
-    //               ) : (
-    //                 "Submit"
-    //               )}
-    //             </Button>
-    //           </div>
-    //         </DialogContent>
-    //       </Dialog>
-    //     )}
-    //   </section>
-    // </div>
-
     <div>
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
         {/* Next Meeting */}
@@ -763,155 +481,61 @@ const MainMenu = () => {
           )}
         </div>
 
-        {/* New Meeting */}
+        {/* 1. Instant New Meeting */}
         {isTeacher && (
-          // <Dialog>
-          //   <DialogTrigger>
-          //     <MenuItemCard title="New Meeting" Icon={PlusCircle} />
-          //   </DialogTrigger>
-          //   <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
-          //     <DialogHeader>
-          //       <DialogTitle className="text-lg sm:text-2xl font-black leading-relaxed text-center">
-          //         Start an Instant Meeting 🤝
-          //       </DialogTitle>
-          //       <DialogDescription className="text-center text-xs sm:text-sm">
-          //         Fill in the details to start an instant meeting
-          //       </DialogDescription>
-          //     </DialogHeader>
-
-          //     <div className="flex flex-col gap-3 sm:gap-4 mt-4">
-          //       <span className="text-xs sm:text-sm">Meeting Title</span>
-          //       <Input
-          //         type="text"
-          //         placeholder="Enter meeting title"
-          //         value={values.title}
-          //         onChange={(e) =>
-          //           setValues({...values, title: e.target.value})
-          //         }
-          //         className="inputs w-full text-sm sm:text-base"
-          //       />
-
-          //       <span className="text-xs sm:text-sm">Course</span>
-          //       <select
-          //         value={values.courseId || ""}
-          //         onChange={(e) =>
-          //           setValues({...values, courseId: Number(e.target.value)})
-          //         }
-          //         className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-[#f7b55] focus:ring-2 focus:ring-[#f7b55]/40"
-          //         required>
-          //         <option value="" disabled>
-          //           Select a course
-          //         </option>
-          //         {courses.map((course) => (
-          //           <option key={course.id} value={course.id}>
-          //             {course.name} ({course.classroom})
-          //           </option>
-          //         ))}
-          //       </select>
-
-          //       <span className="text-xs sm:text-sm">
-          //         Add a meeting description
-          //       </span>
-          //       <Textarea
-          //         className="inputs w-full p-2 sm:p-3 text-sm sm:text-base"
-          //         rows={4}
-          //         value={values.description}
-          //         onChange={(e) =>
-          //           setValues({...values, description: e.target.value})
-          //         }
-          //       />
-
-          //       <span className="text-xs sm:text-sm">Duration (minutes)</span>
-          //       <Input
-          //         type="number"
-          //         placeholder="Enter duration in minutes"
-          //         value={values.duration}
-          //         onChange={(e) =>
-          //           setValues({
-          //             ...values,
-          //             duration: parseInt(e.target.value) || 60,
-          //           })
-          //         }
-          //         className="inputs w-full text-sm sm:text-base"
-          //       />
-
-          //       <Button
-          //         className={`mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-[#f7b55] py-2 sm:py-3 px-4 sm:px-6 hover:bg-[#e0a94d] hover:scale-105 transition ease-in-out duration-500 cursor-pointer ${
-          //           isCreatingMeeting ? "opacity-50 cursor-not-allowed" : ""
-          //         }`}
-          //         onClick={() => {
-          //           setIsCreatingMeeting(true);
-          //           setMeetingState("Instant");
-          //         }}
-          //         disabled={isCreatingMeeting}>
-          //         {isCreatingMeeting ? (
-          //           <div className="flex items-center justify-center">
-          //             <Spinner size="sm" className="mr-2 text-white" /> Creating
-          //             Meeting...
-          //           </div>
-          //         ) : (
-          //           "Create Meeting"
-          //         )}
-          //       </Button>
-          //     </div>
-          //   </DialogContent>
-          // </Dialog>
-          <Dialog>
-            <DialogTrigger>
-              <MenuItemCard
-                title="New Meeting"
-                Icon={PlusCircle}
-                color="#EF7B55"
-              />
+          <Dialog open={isNewMeetingOpen} onOpenChange={setIsNewMeetingOpen}>
+            <DialogTrigger asChild>
+              <div>
+                <MenuItemCard
+                  title="New Meeting"
+                  Icon={PlusCircle}
+                  color="#EF7B55"
+                />
+              </div>
             </DialogTrigger>
 
-            <DialogContent
-              className="
-      bg-white text-[#ef7b55]
-      w-[95vw] sm:w-full
-      max-w-[500px]
-      h-[85vh]
-      rounded-xl
-      shadow-lg
-      p-0
-      flex flex-col
-      overflow-hidden
-    ">
-              {/* ✅ Fixed Header */}
-              <div className="px-5 py-4 border-b bg-white shrink-0">
+            <DialogContent className="bg-white text-slate-900 w-[95vw] sm:w-full max-w-[520px] rounded-3xl shadow-2xl p-0 flex flex-col overflow-hidden border border-slate-100">
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-[#EF7B55] to-[#f98a66] p-6 text-white shrink-0 relative">
                 <DialogHeader>
-                  <DialogTitle className="text-lg sm:text-xl font-semibold text-center">
-                    Start an Instant Meeting
-                  </DialogTitle>
-
-                  <DialogDescription className="text-center text-sm text-gray-500">
-                    Fill in the details below
-                  </DialogDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white">
+                      <PlusCircle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-extrabold text-white text-left">
+                        Start an Instant Meeting 🤝
+                      </DialogTitle>
+                      <DialogDescription className="text-orange-50/90 text-xs sm:text-sm text-left mt-0.5">
+                        Fill in the session details to jump right in
+                      </DialogDescription>
+                    </div>
+                  </div>
                 </DialogHeader>
               </div>
 
-              {/* ✅ Scrollable Body */}
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Scrollable Form Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {/* Meeting Title */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    Meeting Title
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Meeting Title <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="text"
-                    placeholder="Enter meeting title"
+                    placeholder="e.g., Python Advanced Q&A"
                     value={values.title}
                     onChange={(e) =>
-                      setValues({...values, title: e.target.value})
+                      setValues({ ...values, title: e.target.value })
                     }
-                    className="w-full text-base"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
                   />
                 </div>
 
                 {/* Course */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    Course
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Course <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={values.courseId || ""}
@@ -921,13 +545,9 @@ const MainMenu = () => {
                         courseId: Number(e.target.value),
                       })
                     }
-                    className="
-            w-full text-base p-2.5 rounded-md
-            border border-gray-300
-            focus:outline-none
-            focus:ring-1 focus:ring-gray-400
-          "
-                    required>
+                    className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
+                    required
+                  >
                     <option value="" disabled>
                       Select a course
                     </option>
@@ -940,12 +560,13 @@ const MainMenu = () => {
                 </div>
 
                 {/* Description */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
                     Description
                   </label>
                   <Textarea
-                    rows={4}
+                    rows={3}
+                    placeholder="Optional meeting goals or context..."
                     value={values.description}
                     onChange={(e) =>
                       setValues({
@@ -953,18 +574,18 @@ const MainMenu = () => {
                         description: e.target.value,
                       })
                     }
-                    className="w-full text-base"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
                   />
                 </div>
 
                 {/* Duration */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    Duration (minutes)
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Duration (Minutes)
                   </label>
                   <Input
                     type="number"
-                    placeholder="Enter duration"
+                    placeholder="60"
                     value={values.duration}
                     onChange={(e) =>
                       setValues({
@@ -972,36 +593,30 @@ const MainMenu = () => {
                         duration: parseInt(e.target.value) || 60,
                       })
                     }
-                    className="w-full text-base"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-[#EF7B55] focus:ring-2 focus:ring-[#EF7B55]/20 transition-all outline-none"
                   />
                 </div>
               </div>
 
-              {/* ✅ Fixed Footer */}
-              <div className="px-5 py-4 border-t bg-white shrink-0">
+              {/* Action Footer */}
+              <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
                 <Button
-                  className={`
-          w-full
-          bg-[#ef7b55]/70 hover:bg-[#ef7b55]/90
-          text-white
-          rounded-lg
-          py-2.5
-          text-sm font-medium
-          transition
-          ${isCreatingMeeting ? "opacity-50 cursor-not-allowed" : ""}
-        `}
+                  className={`w-full bg-gradient-to-r from-[#EF7B55] to-[#f98a66] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
+                    isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   onClick={() => {
                     setIsCreatingMeeting(true);
                     setMeetingState("Instant");
                   }}
-                  disabled={isCreatingMeeting}>
+                  disabled={isCreatingMeeting}
+                >
                   {isCreatingMeeting ? (
                     <div className="flex items-center justify-center gap-2">
                       <Spinner size="sm" />
-                      Creating...
+                      <span>Creating Meeting...</span>
                     </div>
                   ) : (
-                    "Create Meeting"
+                    "Create & Join Instant Meeting"
                   )}
                 </Button>
               </div>
@@ -1009,292 +624,130 @@ const MainMenu = () => {
           </Dialog>
         )}
 
-        {/* Join Meeting */}
-        {/* <Dialog>
-          <DialogTrigger>
-            <MenuItemCard
-                title="New Meeting"
-                Icon={PlusCircle}
-                color="#EF7B55"
-              />
+        {/* 2. Join Meeting */}
+        <Dialog open={isJoinMeetingOpen} onOpenChange={setIsJoinMeetingOpen}>
+          <DialogTrigger asChild>
+            <div>
+              <MenuItemCard title="Join Meeting" Icon={Users} color="#55C1EF" />
+            </div>
           </DialogTrigger>
-          <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
-            <DialogHeader>
-              <DialogTitle className="text-lg sm:text-2xl font-black text-center mb-3 sm:mb-4">
-                Type the Meeting link here
-              </DialogTitle>
-              <DialogDescription className="text-center text-xs sm:text-sm">
-                Enter the meeting link or ID to join
-              </DialogDescription>
-            </DialogHeader>
 
-            <div className="flex flex-col gap-3 sm:gap-4">
-              <Input
-                type="text"
-                placeholder="Meeting Link or Meeting ID"
-                value={values.link}
-                onChange={(e) => setValues({...values, link: e.target.value})}
-                className="inputs w-full text-sm sm:text-base"
-              />
+          <DialogContent className="bg-white text-slate-900 w-[95vw] sm:w-full max-w-[480px] rounded-3xl shadow-2xl p-0 flex flex-col overflow-hidden border border-slate-100">
+            {/* Header Banner */}
+            <div className="bg-gradient-to-r from-sky-500 to-blue-600 p-6 text-white shrink-0">
+              <DialogHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-extrabold text-white text-left">
+                      Join a Meeting 🚀
+                    </DialogTitle>
+                    <DialogDescription className="text-sky-50/90 text-xs sm:text-sm text-left mt-0.5">
+                      Enter the meeting link or ID provided by your host
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+            </div>
 
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                  Meeting Link or ID
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. 8c755281-dc2d-42bd-9354-238f8669386d"
+                  value={values.link}
+                  onChange={(e) => setValues({ ...values, link: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-sm focus:bg-white focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
               <Button
-                className={`mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-[#f7b55] py-2 sm:py-3 px-4 sm:px-6 hover:bg-[#e0a94d] hover:scale-105 transition ease-in-out duration-500 cursor-pointer ${
-                  isJoining ? "opacity-50 cursor-not-allowed" : ""
+                className={`w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-sky-500/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
+                  isJoining ? "opacity-60 cursor-not-allowed" : ""
                 }`}
                 onClick={() => {
                   setIsJoining(true);
                   joinMeeting();
                 }}
-                disabled={isJoining}>
-                {isJoining ? (
-                  <div className="flex items-center justify-center">
-                    <Spinner size="sm" className="mr-2 text-white" /> Joining
-                    Meeting...
-                  </div>
-                ) : (
-                  "Join Meeting"
-                )}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog> */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <div>
-              <MenuItemCard title="New Meeting" Icon={Users} color="#55C1EF" />
-            </div>
-          </DialogTrigger>
-
-          <DialogContent
-            className="
-      bg-white text-[#ef7b55]
-      w-[95vw] sm:w-full
-      max-w-[500px]
-      h-[45vh] sm:h-[290px]
-      rounded-xl
-      shadow-lg
-      p-0
-      flex flex-col
-      overflow-hidden
-    ">
-            {/* ✅ Fixed Header */}
-            <div className="px-5 py-4 border-b bg-white shrink-0">
-              <DialogHeader>
-                <DialogTitle className="text-lg sm:text-xl font-semibold text-center">
-                  Type the Meeting Link
-                </DialogTitle>
-                <DialogDescription className="text-center text-sm text-gray-500">
-                  Enter the meeting link or ID to join
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-
-            {/* ✅ Scrollable Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-6 space-y-4">
-              <Input
-                type="text"
-                placeholder="Meeting Link or Meeting ID"
-                value={values.link}
-                onChange={(e) => setValues({...values, link: e.target.value})}
-                className="w-full text-base"
-              />
-            </div>
-
-            {/* ✅ Fixed Footer */}
-            <div className="px-5 py-4 border-t bg-white shrink-0">
-              <Button
-                className={`
-          w-full
-          bg-[#ef7b55]/70 hover:bg-[#ef7b55]/90
-          text-white
-          rounded-lg
-          py-2.5
-          text-sm font-medium
-          transition
-          ${isJoining ? "opacity-50 cursor-not-allowed" : ""}
-        `}
-                onClick={() => {
-                  setIsJoining(true);
-                  joinMeeting();
-                }}
-                disabled={isJoining}>
+                disabled={isJoining}
+              >
                 {isJoining ? (
                   <div className="flex items-center justify-center gap-2">
                     <Spinner size="sm" />
-                    Joining...
+                    <span>Joining Meeting...</span>
                   </div>
                 ) : (
-                  "Join Meeting"
+                  "Join Meeting Now"
                 )}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-        {/* Schedule Meeting */}
+        {/* 3. Schedule Meeting */}
         {isTeacher && (
-          // <Dialog>
-          //   <DialogTrigger>
-          //     <MenuItemCard title="Schedule" Icon={CalendarDays} />
-          //   </DialogTrigger>
-          //   <DialogContent className="bg-gray-200 w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto px-4 sm:px-6 md:px-10 py-6 sm:py-8 md:py-10 text-[#ef7b55] rounded-2xl">
-          //     <DialogHeader>
-          //       <DialogTitle className="text-lg sm:text-2xl font-black text-center mb-3 sm:mb-4">
-          //         Schedule Meeting
-          //       </DialogTitle>
-          //       <DialogDescription className="text-center text-xs sm:text-sm">
-          //         Fill in the details to schedule a meeting
-          //       </DialogDescription>
-          //     </DialogHeader>
-
-          //     <div className="flex flex-col gap-3 sm:gap-4">
-          //       <span className="text-xs sm:text-sm">Meeting Title</span>
-          //       <Input
-          //         type="text"
-          //         placeholder="Enter meeting title"
-          //         value={values.title}
-          //         onChange={(e) =>
-          //           setValues({...values, title: e.target.value})
-          //         }
-          //         className="inputs w-full text-sm sm:text-base"
-          //       />
-
-          //       <span className="text-xs sm:text-sm">Course</span>
-          //       <select
-          //         value={values.courseId || ""}
-          //         onChange={(e) =>
-          //           setValues({...values, courseId: Number(e.target.value)})
-          //         }
-          //         className="inputs w-full p-2 rounded text-sm sm:text-base border border-gray-300 focus:outline-none focus:border-[#f7b55] focus:ring-2 focus:ring-[#f7b55]/40"
-          //         required>
-          //         <option value="" disabled>
-          //           Select a course
-          //         </option>
-          //         {courses.map((course) => (
-          //           <option key={course.id} value={course.id}>
-          //             {course.name} ({course.classroom})
-          //           </option>
-          //         ))}
-          //       </select>
-
-          //       <span className="text-xs sm:text-sm">
-          //         Add a meeting description
-          //       </span>
-          //       <Textarea
-          //         className="inputs w-full p-2 sm:p-3 text-sm sm:text-base"
-          //         rows={4}
-          //         value={values.description}
-          //         onChange={(e) =>
-          //           setValues({...values, description: e.target.value})
-          //         }
-          //       />
-
-          //       <span className="text-xs sm:text-sm">Duration (minutes)</span>
-          //       <Input
-          //         type="number"
-          //         placeholder="Enter duration in minutes"
-          //         value={values.duration}
-          //         onChange={(e) =>
-          //           setValues({
-          //             ...values,
-          //             duration: parseInt(e.target.value) || 60,
-          //           })
-          //         }
-          //         className="inputs w-full text-sm sm:text-base"
-          //       />
-
-          //       <span className="text-xs sm:text-sm">Select Date and Time</span>
-          //       <DatePicker
-          //         preventOpenOnFocus
-          //         selected={values.dateTime}
-          //         onChange={(date) => setValues({...values, dateTime: date!})}
-          //         showTimeSelect
-          //         timeIntervals={15}
-          //         timeCaption="time"
-          //         dateFormat="MMMM d, yyyy h:mm aa"
-          //         className="inputs w-full rounded p-2 text-sm sm:text-base focus:outline-none focus:border-[#f7b55] focus:ring-2 focus:ring-[#f7b55]/40"
-          //       />
-
-          //       <Button
-          //         className={`mt-3 sm:mt-5 w-full font-extrabold text-sm sm:text-base text-white rounded-xl bg-[#f7b55] py-2 sm:py-3 px-4 sm:px-6 hover:bg-[#e0a94d] hover:scale-105 transition ease-in-out duration-500 cursor-pointer ${
-          //           isCreatingMeeting ? "opacity-50 cursor-not-allowed" : ""
-          //         }`}
-          //         onClick={() => {
-          //           setIsCreatingMeeting(true);
-          //           setMeetingState("Schedule");
-          //         }}
-          //         disabled={isCreatingMeeting}>
-          //         {isCreatingMeeting ? (
-          //           <div className="flex items-center justify-center">
-          //             <Spinner size="sm" className="mr-2 text-white" />{" "}
-          //             Scheduling...
-          //           </div>
-          //         ) : (
-          //           "Submit"
-          //         )}
-          //       </Button>
-          //     </div>
-          //   </DialogContent>
-          // </Dialog>
-          <Dialog>
+          <Dialog open={isScheduleMeetingOpen} onOpenChange={setIsScheduleMeetingOpen}>
             <DialogTrigger asChild>
               <div>
-                <div>
-                  <MenuItemCard
-                    title="New Meeting"
-                    Icon={CalendarDays}
-                    color="#4F46E5"
-                  />
-                </div>
+                <MenuItemCard
+                  title="Schedule Meeting"
+                  Icon={CalendarDays}
+                  color="#4F46E5"
+                />
               </div>
             </DialogTrigger>
 
-            <DialogContent
-              className="
-      bg-white text-[#ef7b55]
-      w-[95vw] sm:w-full
-      max-w-[500px]
-      h-[85vh]
-      rounded-xl
-      shadow-lg
-      p-0
-      flex flex-col
-      overflow-hidden
-    ">
-              {/* ✅ Fixed Header */}
-              <div className="px-5 py-4 border-b bg-white shrink-0">
+            <DialogContent className="bg-white text-slate-900 w-[95vw] sm:w-full max-w-[520px] rounded-3xl shadow-2xl p-0 flex flex-col overflow-hidden border border-slate-100">
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white shrink-0">
                 <DialogHeader>
-                  <DialogTitle className="text-lg sm:text-xl font-semibold text-center">
-                    Schedule Meeting
-                  </DialogTitle>
-                  <DialogDescription className="text-center text-sm text-gray-500">
-                    Fill in the details to schedule a meeting
-                  </DialogDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-white/20 backdrop-blur-md text-white">
+                      <CalendarDays className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-extrabold text-white text-left">
+                        Schedule a Future Session 📅
+                      </DialogTitle>
+                      <DialogDescription className="text-indigo-50/90 text-xs sm:text-sm text-left mt-0.5">
+                        Set date and details for an upcoming live class
+                      </DialogDescription>
+                    </div>
+                  </div>
                 </DialogHeader>
               </div>
 
-              {/* ✅ Scrollable Body */}
-              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Body */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {/* Meeting Title */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    Meeting Title
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Meeting Title <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="text"
-                    placeholder="Enter meeting title"
+                    placeholder="e.g., Weekly Live Revision"
                     value={values.title}
                     onChange={(e) =>
-                      setValues({...values, title: e.target.value})
+                      setValues({ ...values, title: e.target.value })
                     }
-                    className="w-full text-base"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
                   />
                 </div>
 
                 {/* Course */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    Course
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Course <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={values.courseId || ""}
@@ -1304,13 +757,9 @@ const MainMenu = () => {
                         courseId: Number(e.target.value),
                       })
                     }
-                    className="
-            w-full text-base p-2.5 rounded-md
-            border border-gray-300
-            focus:outline-none
-            focus:ring-1 focus:ring-gray-400
-          "
-                    required>
+                    className="w-full text-sm p-3 rounded-xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
+                    required
+                  >
                     <option value="" disabled>
                       Select a course
                     </option>
@@ -1323,12 +772,13 @@ const MainMenu = () => {
                 </div>
 
                 {/* Description */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
                     Description
                   </label>
                   <Textarea
-                    rows={4}
+                    rows={3}
+                    placeholder="Add agenda or details..."
                     value={values.description}
                     onChange={(e) =>
                       setValues({
@@ -1336,18 +786,35 @@ const MainMenu = () => {
                         description: e.target.value,
                       })
                     }
-                    className="w-full text-base"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
+                  />
+                </div>
+
+                {/* Date & Time */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
+                    Select Date & Time <span className="text-red-500">*</span>
+                  </label>
+                  <DatePicker
+                    preventOpenOnFocus
+                    selected={values.dateTime}
+                    onChange={(date) => setValues({ ...values, dateTime: date! })}
+                    showTimeSelect
+                    timeIntervals={15}
+                    timeCaption="Time"
+                    dateFormat="MMMM d, yyyy h:mm aa"
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
                   />
                 </div>
 
                 {/* Duration */}
-                <div className="space-y-1">
-                  <label className="text-sm font-medium text-gray-700">
-                    Duration (minutes)
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Duration (Minutes)
                   </label>
                   <Input
                     type="number"
-                    placeholder="Enter duration"
+                    placeholder="60"
                     value={values.duration}
                     onChange={(e) =>
                       setValues({
@@ -1355,58 +822,30 @@ const MainMenu = () => {
                         duration: parseInt(e.target.value) || 60,
                       })
                     }
-                    className="w-full text-base"
-                  />
-                </div>
-
-                {/* Date Picker */}
-                <div className="space-y-1 space-x-4 gap-3">
-                  <label className="text-sm font-medium text-gray-700">
-                    Select Date & Time
-                  </label>
-                  <DatePicker
-                    preventOpenOnFocus
-                    selected={values.dateTime}
-                    onChange={(date) => setValues({...values, dateTime: date!})}
-                    showTimeSelect
-                    timeIntervals={15}
-                    timeCaption="Time"
-                    dateFormat="MMMM d, yyyy h:mm aa"
-                    className="
-            w-full text-base p-2.5 rounded-md
-            border border-gray-300
-            focus:outline-none
-            focus:ring-1 focus:ring-gray-400
-          "
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm focus:bg-white focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/20 transition-all outline-none"
                   />
                 </div>
               </div>
 
-              {/* ✅ Fixed Footer */}
-              <div className="px-5 py-4 border-t bg-white shrink-0">
+              {/* Action Footer */}
+              <div className="p-5 border-t border-slate-100 bg-slate-50/50 shrink-0">
                 <Button
-                  className={`
-          w-full
-          bg-[#ef7b55]/70 hover:bg-[#ef7b55]/90
-          text-white
-          rounded-lg
-          py-2.5
-          text-sm font-medium
-          transition
-          ${isCreatingMeeting ? "opacity-50 cursor-not-allowed" : ""}
-        `}
+                  className={`w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/20 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
+                    isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
+                  }`}
                   onClick={() => {
                     setIsCreatingMeeting(true);
                     setMeetingState("Schedule");
                   }}
-                  disabled={isCreatingMeeting}>
+                  disabled={isCreatingMeeting}
+                >
                   {isCreatingMeeting ? (
                     <div className="flex items-center justify-center gap-2">
                       <Spinner size="sm" />
-                      Scheduling...
+                      <span>Scheduling Meeting...</span>
                     </div>
                   ) : (
-                    "Submit"
+                    "Schedule Live Session"
                   )}
                 </Button>
               </div>

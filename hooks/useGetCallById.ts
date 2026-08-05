@@ -11,18 +11,20 @@ export const useGetCallById = (id: string | string[]) => {
   useEffect(() => {
     if (!client) return;
 
-    const loadCall = async () => {
-      try {
-        const {calls} = await client.queryCalls({filter_conditions: {id}});
-        if (calls.length > 0) setCall(calls[0]);
-        setIsCallLoading(false);
-      } catch (error: any) {
-        console.error(error);
-        setIsCallLoading(false);
-      }
-    };
+    const callId = Array.isArray(id) ? id[0] : id;
+    if (!callId) {
+      setIsCallLoading(false);
+      return;
+    }
 
-    loadCall();
+    try {
+      const activeCall = client.call("default", callId);
+      setCall(activeCall);
+    } catch (error: any) {
+      console.error("[useGetCallById] Error initializing call:", error);
+    } finally {
+      setIsCallLoading(false);
+    }
   }, [client, id]);
 
   return {call, isCallLoading};

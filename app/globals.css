@@ -97,7 +97,7 @@
 }
 
 @layer base {
-  * {
+  *:not([class*="str-video"]) {
     @apply border-border outline-ring/50;
   }
   body {
@@ -175,6 +175,249 @@ button:focus-visible {
 
 .str-video__call-controls__button {
   height: 40px;
+}
+
+/* ── Strip Stream SDK's blue active/focus border on VideoPreview ── */
+.str-video__video-preview,
+.str-video__video-preview *,
+.str-video__video-preview video {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Remove blue outline on any focussed stream element */
+[class^="str-video"]:focus,
+[class^="str-video"]:focus-visible,
+[class*="str-video"]:focus,
+[class*="str-video"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+/* Remove the blue participant indicator ring */
+.str-video__participant--speaking,
+.str-video__participant--dominant-speaker {
+  box-shadow: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+}
+
+/* Participant list height fix — fills its flex container */
+.str-video__participant-list {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* ─────────────────────────────────────────────
+   DeviceSettings modal — full dark restyle
+───────────────────────────────────────────── */
+
+/* Outer modal panel */
+.str-video__device-settings {
+  background: rgba(13, 15, 20, 0.98) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.04) !important;
+  color: #fff !important;
+  padding: 20px !important;
+  min-width: 300px !important;
+  max-width: 380px !important;
+}
+
+/* Header */
+.str-video__device-settings__header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 16px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+}
+
+/* Settings icon in header */
+.str-video__icon.str-video__device-settings__settings-icon {
+  color: #EF7B55 !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Close button */
+.str-video__device-settings__close-button {
+  background: rgba(255,255,255,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 8px !important;
+  color: rgba(255,255,255,0.6) !important;
+  width: 28px !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.str-video__device-settings__close-button:hover {
+  background: rgba(255,255,255,0.12) !important;
+  color: #fff !important;
+}
+
+/* Section (Camera / Mic block) */
+.str-video__device-settings__device-kind {
+  margin-bottom: 16px !important;
+}
+
+/* Section title "Select a Camera" / "Select a Mic" */
+.str-video__device-settings__device-kind .str-video__device-settings__device-selector-title {
+  color: rgba(255,255,255,0.4) !important;
+  font-size: 0.62rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+  margin-bottom: 8px !important;
+}
+
+/* Each device option row */
+.str-video__device-settings__device-kind .str-video__option,
+.str-video__device-settings__device-kind .str-video__device-settings__option {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 9px 12px !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease !important;
+  color: #d4d4d8 !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.str-video__device-settings__device-kind .str-video__option:not(:first-of-type),
+.str-video__device-settings__device-kind .str-video__device-settings__option:not(:first-of-type) {
+  margin-top: 4px !important;
+}
+
+.str-video__device-settings__device-kind .str-video__option:hover,
+.str-video__device-settings__device-kind .str-video__device-settings__option:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+}
+
+/* Selected / active device */
+.str-video__device-settings__device-kind .str-video__option--selected,
+.str-video__device-settings__device-kind .str-video__option--active,
+.str-video__device-settings__device-kind .str-video__device-settings__option--selected,
+.str-video__device-settings__device-kind .str-video__device-settings__option--active {
+  background: rgba(239, 123, 85, 0.12) !important;
+  border-color: rgba(239, 123, 85, 0.25) !important;
+  color: #fff !important;
+}
+
+/* Checkmark icon on selected */
+.str-video__device-settings__device-kind .str-video__option__icon--selected,
+.str-video__device-settings__device-kind .str-video__device-settings__option__icon--selected {
+  color: #EF7B55 !important;
+}
+
+/* Radio input */
+.str-video__device-settings__device-kind .str-video__option input[type=radio],
+.str-video__device-settings__device-kind .str-video__device-settings__option input[type=radio] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(255,255,255,0.25) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+  transition: border-color 0.15s ease !important;
+}
+
+.str-video__device-settings__device-kind .str-video__option input[type=radio]::before,
+.str-video__device-settings__device-kind .str-video__device-settings__option input[type=radio]::before {
+  content: "" !important;
+  display: block !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #EF7B55 !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) scale(0) !important;
+  transition: transform 0.15s ease !important;
+}
+
+.str-video__device-settings__device-kind .str-video__option input[type=radio]:checked::before,
+.str-video__device-settings__device-kind .str-video__device-settings__option input[type=radio]:checked::before {
+  transform: translate(-50%, -50%) scale(1) !important;
+}
+
+.str-video__device-settings__device-kind .str-video__option input[type=radio]:checked,
+.str-video__device-settings__device-kind .str-video__device-settings__option input[type=radio]:checked {
+  border-color: #EF7B55 !important;
+}
+
+/* Divider between Camera / Mic sections */
+.str-video__device-settings__separator {
+  border: none !important;
+  border-top: 1px solid rgba(255,255,255,0.07) !important;
+  margin: 14px 0 !important;
+}
+
+/* ─── Call controls (Mute/Camera buttons inside DeviceSettings) ─── */
+.str-video__call-controls {
+  background: transparent !important;
+  border-top: 1px solid rgba(255,255,255,0.07) !important;
+  padding-top: 14px !important;
+  margin-top: 4px !important;
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-start !important;
+}
+
+.str-video__call-controls button,
+.str-video__call-controls__button {
+  border-radius: 50px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  padding: 7px 16px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: opacity 0.15s ease, transform 0.1s ease, background 0.15s ease !important;
+  height: auto !important;
+  background: rgba(255,255,255,0.08) !important;
+  color: #e4e4e7 !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+}
+
+.str-video__call-controls button:hover,
+.str-video__call-controls__button:hover {
+  background: rgba(255,255,255,0.14) !important;
+  color: #fff !important;
+  transform: scale(1.02) !important;
+}
+
+.str-video__call-controls__button--active {
+  background: rgba(239, 123, 85, 0.85) !important;
+  border-color: #EF7B55 !important;
+  color: #fff !important;
 }
 
 /*  */
