@@ -34,3 +34,27 @@ export const tokenProvider = async () => {
     throw new Error("Failed to generate Stream token");
   }
 };
+
+export const createStreamCallServer = async (id: string, startsAt: string, description: string) => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("User is not authenticated");
+  const client = new StreamClient(streamApiKey, streamSecretKey);
+  const userId: string = String(
+    session.user.id || session.user.email || "anonymous"
+  );
+
+  try {
+    const call = client.video.call("default", id);
+    await call.getOrCreate({
+      data: {
+        created_by_id: userId,
+        starts_at: startsAt,
+        custom: { description },
+      },
+    });
+    return { success: true };
+  } catch (error) {
+    console.error("[StreamServer] Call creation error:", error);
+    return { success: false, error: String(error) };
+  }
+};
