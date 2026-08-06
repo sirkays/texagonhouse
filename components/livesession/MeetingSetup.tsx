@@ -8,8 +8,10 @@ import {
   VideoPreview,
 } from "@stream-io/video-react-sdk";
 import Alert from "./Alert";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "../ui/button";
+import { usePathname } from "next/navigation";
+import { useMediaPreferences } from "@/hooks/useMediaPreferences";
 import {
   Mic,
   MicOff,
@@ -35,6 +37,13 @@ const MeetingSetup = ({
   if (!call) {
     throw new Error("useStreamCall must be used within a StreamCall component.");
   }
+
+  const pathname = usePathname();
+  const meetingId = useMemo(() => {
+    const parts = pathname?.split("/") || [];
+    return parts[parts.length - 1] || "unknown";
+  }, [pathname]);
+  const { persistCurrentState } = useMediaPreferences(meetingId);
 
   const { useCallEndedAt, useCallStartsAt } = useCallStateHooks();
   const callStartsAt = useCallStartsAt();
@@ -238,6 +247,8 @@ const MeetingSetup = ({
           <Button
             className="w-full bg-gradient-to-r from-[#EF7B55] to-[#f9926b] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 text-base cursor-pointer"
             onClick={async () => {
+              // Persist media preferences before joining
+              persistCurrentState(!isMuted, !isVideoDisabled);
               try {
                 await call.join();
                 await call.updateCallMembers({

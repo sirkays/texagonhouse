@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { StreamVideo, StreamVideoClient, StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
 import { guestTokenProvider } from "@/actions/stream.actions";
 import { Button } from "../ui/button";
@@ -11,7 +11,7 @@ import MeetingRoom from "./MeetingRoom";
 import LivestreamViewer from "./LivestreamViewer";
 import { User, Mail, ArrowRight, Globe, ShieldCheck } from "lucide-react";
 
-const API_KEY = "cx85x7gj2dxr";
+const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
 
 interface GuestJoinPageProps {
   meetingId: string;
@@ -34,7 +34,25 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
     setError("");
 
     try {
-      const token = await guestTokenProvider(idToUse);
+      // Create a tokenProvider callback for automatic token refresh
+      // instead of a static token that expires after 1 hour
+      const guestTokenProviderCallback = async () => {
+        const res = await fetch('/api/meeting/guest-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guestId: idToUse, meetingId }),
+        });
+        if (!res.ok) {
+          // Fallback to server action if API route fails
+          return guestTokenProvider(idToUse);
+        }
+        const data = await res.json();
+        return data.token;
+      };
+
+      // Get initial token
+      const initialToken = await guestTokenProviderCallback();
+
       const client = new StreamVideoClient({
         apiKey: API_KEY,
         user: {
@@ -46,7 +64,8 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
             isGuest: true,
           },
         },
-        token,
+        token: initialToken,
+        tokenProvider: guestTokenProviderCallback,
       });
 
       setVideoClient(client);

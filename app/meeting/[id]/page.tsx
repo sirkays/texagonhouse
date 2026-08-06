@@ -14,11 +14,14 @@ import {
   StreamTheme,
 } from "@stream-io/video-react-sdk";
 import { useParams } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { tokenProvider } from "@/actions/stream.actions";
 
-const API_KEY = "cx85x7gj2dxr";
+// Memoize at module level — tokenProvider is a stable server action reference
+const stableTokenProvider = tokenProvider;
+
+const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
 
 interface MeetingInfo {
   is_public: boolean;
@@ -42,6 +45,8 @@ const PublicMeetingPage = () => {
   const [call, setCall] = useState<any>(null);
   const [isCallLoading, setIsCallLoading] = useState(true);
   const clientRef = useRef<StreamVideoClient | null>(null);
+  const hasJoinedRef = useRef(false);
+  const clientCreatedForUserRef = useRef<string | null>(null);
 
   // Step 1: Check if meeting is public
   useEffect(() => {
@@ -65,10 +70,18 @@ const PublicMeetingPage = () => {
   }, [id]);
 
   // Step 2: For authenticated users, create StreamVideoClient and fetch the call
+  // STABILIZED: Only create client ONCE per user session. Removed meetingInfo?.call_type
+  // from deps to prevent client recreation when meeting info arrives.
   useEffect(() => {
     if (status !== "authenticated" || !session?.user || !id || isCheckingPublic) return;
 
     const userId = String(session.user.id);
+
+    // Guard: don't recreate client for the same user
+    if (clientRef.current && clientCreatedForUserRef.current === userId) {
+      return;
+    }
+
     const client = new StreamVideoClient({
       apiKey: API_KEY,
       user: {
@@ -76,10 +89,11 @@ const PublicMeetingPage = () => {
         name: session.user.name || session.user.email?.split("@")[0] || "User",
         image: session.user.image || undefined,
       },
-      tokenProvider,
+      tokenProvider: stableTokenProvider,
     });
 
     clientRef.current = client;
+    clientCreatedForUserRef.current = userId;
     setVideoClient(client);
 
     const fetchCall = async () => {
@@ -93,13 +107,18 @@ const PublicMeetingPage = () => {
           // Only accept if the call has real custom data (not an empty auto-created shell)
           const custom = c.state.custom || {};
           if (Object.keys(custom).length > 0 || callType === "default") {
-            try {
-              const savedSetup = sessionStorage.getItem(`techxagon_setup_${id}`);
-              if (savedSetup === "true") {
-                await c.join();
+            // Guard: prevent duplicate call.join()
+            if (!hasJoinedRef.current) {
+              try {
+                const savedSetup = sessionStorage.getItem(`techxagon_setup_${id}`);
+                if (savedSetup === "true") {
+                  hasJoinedRef.current = true;
+                  await c.join();
+                }
+              } catch (err) {
+                hasJoinedRef.current = false;
+                console.error("Auto-join error:", err);
               }
-            } catch (err) {
-              console.error("Auto-join error:", err);
             }
             setCall(c);
             setIsCallLoading(false);
@@ -118,8 +137,10 @@ const PublicMeetingPage = () => {
       client.disconnectUser();
       setVideoClient(null);
       clientRef.current = null;
+      clientCreatedForUserRef.current = null;
+      hasJoinedRef.current = false;
     };
-  }, [status, session, id, isCheckingPublic, meetingInfo?.call_type]);
+  }, [status, session?.user?.id, id, isCheckingPublic]);
 
   // Restore setup complete state for authenticated user on reload
   useEffect(() => {

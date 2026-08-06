@@ -7,7 +7,7 @@ import {tokenProvider} from "@/actions/stream.actions";
 import Loading from "@/components/livesession/Loading";
 import {Spinner} from "@/components/ui/spinner";
 
-const API_KEY = "cx85x7gj2dxr";
+const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
 
 const StreamProvider = ({children}: {children: ReactNode}) => {
   const [videoClient, setVideoClient] = useState<StreamVideoClient>();
@@ -21,8 +21,7 @@ const StreamProvider = ({children}: {children: ReactNode}) => {
     if (status !== "authenticated" || !session?.user) return;
     if (!API_KEY) throw new Error("Stream API key is missing");
 
-    console.log(session.user, "user");
-    console.log(session.user, "user");
+    console.log("[StreamProvider] Authenticated user:", session.user?.id);
 
     const userId = String(session.user.id);
 
