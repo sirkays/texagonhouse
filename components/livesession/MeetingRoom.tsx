@@ -808,7 +808,7 @@ const MeetingRoom = () => {
         <div className="flex items-center gap-1.5 sm:gap-2 backdrop-blur-2xl bg-zinc-950/95 border border-white/12 shadow-2xl rounded-2xl px-3 sm:px-4 py-2.5 max-w-[calc(100vw-24px)] overflow-x-auto">
 
           {/* ── Microphone ── */}
-          {hasMicPermission && (
+          {(hasMicPermission || isHost) && (
             <button
               onClick={() => call?.microphone.toggle()}
               title={isMicOff ? "Unmute" : "Mute"}
@@ -826,7 +826,7 @@ const MeetingRoom = () => {
           )}
 
           {/* ── Camera ── */}
-          {hasCamPermission && (
+          {(hasCamPermission || isHost) && (
             <button
               onClick={() => call?.camera.toggle()}
               title={isCamOff ? "Start Camera" : "Stop Camera"}
@@ -844,7 +844,7 @@ const MeetingRoom = () => {
           )}
 
           {/* ── Screen Share (desktop only) ── */}
-          {hasScreenSharePermission && (
+          {(hasScreenSharePermission || isHost) && (
             <button
               onClick={handleScreenShare}
               title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
