@@ -150,7 +150,11 @@ button:focus-visible {
 }
 
 .str-video__speaker-layout__wrapper {
-  max-height: 700px;
+  max-height: none !important;
+  height: 100% !important;
+  flex-grow: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .str-video__participant-details {
@@ -899,6 +903,99 @@ transform: translate(-50%, -50%) scale(0) !important;
   /* Speaker layout wrapper — remove max-height constraint */
   .str-video__speaker-layout__wrapper {
     max-height: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Screen Share (Speaker Layout) — Full-Width Overrides
+───────────────────────────────────────────── */
+
+/* Speaker layout: fill container, flex column */
+.str-video__speaker-layout {
+  height: 100% !important;
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.5rem !important;
+  padding: 0 !important;
+}
+
+/* Spotlight area (screen share): grow to fill all available space */
+.str-video__speaker-layout .str-video__speaker-layout__spotlight {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  height: auto !important;
+  width: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* The actual screen share video element — fill the spotlight */
+.str-video__speaker-layout .str-video__speaker-layout__spotlight .str-video__participant-view {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  aspect-ratio: unset !important;
+  border-radius: 0 !important;
+}
+
+/* Screen share video — contain within the view, fill width */
+.str-video__speaker-layout .str-video__speaker-layout__spotlight .str-video__video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Participant bar (below screen share): compact, horizontal scroll */
+.str-video__speaker-layout--variant-bottom .str-video__speaker-layout__participants-bar-buttons-wrapper,
+.str-video__speaker-layout .str-video__speaker-layout__participants-bar-buttons-wrapper {
+  flex: 0 0 auto !important;
+  max-height: 130px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  width: 100% !important;
+}
+
+/* Participant tiles in the bar — smaller and compact */
+.str-video__speaker-layout .str-video__speaker-layout__participants-bar .str-video__speaker-layout__participant-tile {
+  width: 150px !important;
+  min-width: 130px !important;
+  max-width: 180px !important;
+  padding: 3px !important;
+}
+
+/* Participant views in bar — proper aspect ratio */
+.str-video__speaker-layout .str-video__speaker-layout__participants-bar .str-video__participant-view {
+  aspect-ratio: 4/3 !important;
+  border-radius: 8px !important;
+}
+
+/* ── Mobile screen share adjustments ── */
+@media (max-width: 639px) {
+  .str-video__speaker-layout {
+    gap: 4px !important;
+  }
+
+  .str-video__speaker-layout .str-video__speaker-layout__participants-bar-buttons-wrapper {
+    max-height: 90px !important;
+  }
+
+  .str-video__speaker-layout .str-video__speaker-layout__participants-bar .str-video__speaker-layout__participant-tile {
+    width: 100px !important;
+    min-width: 80px !important;
+    max-width: 120px !important;
+    padding: 2px !important;
+  }
+}
+
+/* ── Tablet screen share adjustments ── */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .str-video__speaker-layout .str-video__speaker-layout__participants-bar .str-video__speaker-layout__participant-tile {
+    width: 130px !important;
+    min-width: 110px !important;
+    max-width: 160px !important;
   }
 }
 
