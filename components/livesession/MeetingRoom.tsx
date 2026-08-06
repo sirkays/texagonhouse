@@ -172,7 +172,16 @@ const MeetingRoom = () => {
   // ── Integrate custom hooks ──
   useLowCostCallSettings(call);
   const {isReconnecting, isOffline, isMigrating} = useMeetingVisibility();
-  const {persistCurrentState} = useMediaPreferences(meetingId);
+  const {persistCurrentState, applyToCall} = useMediaPreferences(meetingId);
+
+  // ── Apply stored media preferences after join (handles reload) ──
+  // When a user reloads, the SDK may auto-enable devices on rejoin.
+  // This effect enforces the user's last known mic/cam state.
+  useEffect(() => {
+    if (callingState === CallingState.JOINED && call) {
+      applyToCall(call);
+    }
+  }, [callingState, call, applyToCall]);
 
   // ── Window resize listener (registered once) ──
   useEffect(() => {

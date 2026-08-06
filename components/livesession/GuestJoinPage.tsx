@@ -273,10 +273,16 @@ const GuestMeetingSetup = ({
   call: any;
   setIsSetupComplete: (value: boolean) => void;
 }) => {
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoDisabled, setIsVideoDisabled] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isVideoDisabled, setIsVideoDisabled] = useState(true);
 
   const userInitial = guestName.charAt(0).toUpperCase();
+
+  // Disable mic and camera on mount (default OFF)
+  useEffect(() => {
+    call.microphone.disable();
+    call.camera.disable();
+  }, [call]);
 
   const toggleMic = () => {
     if (isMuted) {

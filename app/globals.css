@@ -783,3 +783,152 @@ transform: translate(-50%, -50%) scale(0) !important;
 
 /* Hide redundant Stream participant list header */
 .str-video__participant-list__header { display: none !important; }
+
+/* ─────────────────────────────────────────────
+   Mobile-Responsive Video Grid Overrides
+───────────────────────────────────────────── */
+
+/* Paginated grid wrapper — fill available space */
+.str-video__paginated-grid-layout__wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Main grid container */
+.str-video__paginated-grid-layout {
+  height: 100% !important;
+  align-items: center !important;
+}
+
+/* Grid group — the flex container holding participant tiles */
+.str-video__paginated-grid-layout .str-video__paginated-grid-layout__group {
+  gap: 6px !important;
+  padding-inline: 0.5rem !important;
+  max-width: 100% !important;
+  align-content: center !important;
+}
+
+/* Participant tile — base responsive sizing */
+.str-video__paginated-grid-layout .str-video__paginated-grid-layout__group .str-video__participant-view {
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  background: #1a1d2e !important;
+}
+
+/* Participant name tag — prevent overflow */
+.str-video__participant-details__name {
+  max-width: 120px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 11px !important;
+}
+
+/* Participant action buttons — smaller on mobile */
+.str-video__participant-view .str-video__menu-container {
+  transform: scale(0.85) !important;
+}
+
+/* ── Mobile: < 640px ── */
+@media (max-width: 639px) {
+  /* Force 2-column layout on mobile for all group sizes */
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group .str-video__participant-view {
+    flex: 0 1 calc(50% - 4px) !important;
+    min-height: 120px !important;
+    aspect-ratio: 4/3 !important;
+  }
+
+  /* Single participant — full width */
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group.str-video__paginated-grid-layout--one .str-video__participant-view {
+    flex: 0 1 100% !important;
+    min-height: 200px !important;
+    aspect-ratio: 16/9 !important;
+  }
+
+  /* Grid gap tighter on mobile */
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group {
+    gap: 4px !important;
+    padding-inline: 4px !important;
+  }
+
+  /* Name tag even shorter on mobile */
+  .str-video__participant-details__name {
+    max-width: 80px !important;
+    font-size: 10px !important;
+  }
+
+  /* Pagination arrows — smaller & more inset */
+  .str-video__paginated-grid-layout > button {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 10 !important;
+  }
+
+  /* Speaker layout (screen share mode) — stack vertically */
+  .str-video__speaker-layout {
+    flex-direction: column !important;
+  }
+
+  /* Screen share spotlight — take most of the screen */
+  .str-video__speaker-layout__spotlight {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+  }
+
+  /* Participant bar below screen share — horizontal scroll, shorter */
+  .str-video__speaker-layout__participants-bar {
+    max-height: 100px !important;
+    min-height: 80px !important;
+    flex: 0 0 auto !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .str-video__speaker-layout__participants-bar .str-video__participant-view {
+    min-width: 90px !important;
+    max-width: 120px !important;
+    aspect-ratio: 4/3 !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Speaker layout wrapper — remove max-height constraint */
+  .str-video__speaker-layout__wrapper {
+    max-height: none !important;
+  }
+}
+
+/* ── Small tablets: 640px – 1023px ── */
+@media (min-width: 640px) and (max-width: 1023px) {
+  /* 2-3 columns on tablet depending on group size */
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group .str-video__participant-view {
+    flex: 0 1 calc(50% - 6px) !important;
+    min-height: 140px !important;
+  }
+
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group.str-video__paginated-grid-layout--five-nine .str-video__participant-view {
+    flex: 0 1 calc(33.33% - 6px) !important;
+  }
+
+  .str-video__participant-details__name {
+    max-width: 100px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* ── Desktop: > 1024px — gentle refinements ── */
+@media (min-width: 1024px) {
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group {
+    gap: 8px !important;
+    padding-inline: 1rem !important;
+  }
+
+  .str-video__paginated-grid-layout .str-video__paginated-grid-layout__group .str-video__participant-view {
+    border-radius: 16px !important;
+    min-height: 160px !important;
+  }
+}

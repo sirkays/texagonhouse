@@ -29,9 +29,9 @@ const MeetingSetup = ({
   setIsSetupComplete: (value: boolean) => void;
 }) => {
   const { data: session, status } = useSession();
-  const [isMicCamToggled, setIsMicCamToggled] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoDisabled, setIsVideoDisabled] = useState(false);
+  const [isMicCamToggled, setIsMicCamToggled] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isVideoDisabled, setIsVideoDisabled] = useState(true);
 
   const call = useCall();
   if (!call) {
@@ -238,8 +238,8 @@ const MeetingSetup = ({
               </svg>
             </div>
             <div>
-              <p className="text-sm font-medium text-zinc-200 group-hover:text-white transition">Join with mic &amp; camera off</p>
-              <p className="text-xs text-zinc-500 mt-0.5">You can turn them on after joining</p>
+              <p className="text-sm font-medium text-zinc-200 group-hover:text-white transition">Mic &amp; camera are off</p>
+              <p className="text-xs text-zinc-500 mt-0.5">Uncheck to turn them on before joining</p>
             </div>
           </label>
 
