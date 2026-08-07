@@ -1,6 +1,6 @@
 "use client";
 
-import { useCall } from "@stream-io/video-react-sdk";
+import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import {
   MicOff,
   VideoOff,
   PhoneOff,
+  Disc,
 } from "lucide-react";
 import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 
@@ -42,7 +43,9 @@ export function MoreMeetingMenu({
   allowedEmojis,
 }: MoreMeetingMenuProps) {
   const call = useCall();
-  const { isHost, canMuteUsers, canEndCall } = useMeetingPermissions();
+  const { useIsCallRecordingInProgress } = useCallStateHooks();
+  const isRecording = useIsCallRecordingInProgress();
+  const { isHost, canMuteUsers, canEndCall, canRecord } = useMeetingPermissions();
 
   const handleMuteAll = async () => {
     if (!call) return;
@@ -61,6 +64,21 @@ export function MoreMeetingMenu({
       toast.success("Stopped video for all participants");
     } catch (err: any) {
       toast.error(err?.message || "Failed to stop video for all participants.");
+    }
+  };
+
+  const handleToggleRecording = async () => {
+    if (!call) return;
+    try {
+      if (isRecording) {
+        await call.stopRecording();
+        toast.info("Recording stopped");
+      } else {
+        await call.startRecording();
+        toast.success("Recording started");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to toggle recording");
     }
   };
 
@@ -127,27 +145,41 @@ export function MoreMeetingMenu({
         </div>
 
         {/* Host Actions */}
-        {isHost && canMuteUsers && (
+        {isHost && (
           <>
             <DropdownMenuSeparator className="bg-white/10 my-1" />
             <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               Host Tools
             </span>
-            <DropdownMenuItem
-              onClick={handleMuteAll}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-amber-400"
-            >
-              <MicOff className="w-4 h-4" />
-              <span>Mute All Guests</span>
-            </DropdownMenuItem>
+            {canRecord && (
+              <DropdownMenuItem
+                onClick={handleToggleRecording}
+                className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-rose-400"
+              >
+                <Disc className={`w-4 h-4 ${isRecording ? "animate-spin text-red-500" : ""}`} />
+                <span>{isRecording ? "Stop Recording" : "Start Recording"}</span>
+              </DropdownMenuItem>
+            )}
 
-            <DropdownMenuItem
-              onClick={handleStopAllVideo}
-              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-red-400"
-            >
-              <VideoOff className="w-4 h-4" />
-              <span>Stop All Videos</span>
-            </DropdownMenuItem>
+            {canMuteUsers && (
+              <>
+                <DropdownMenuItem
+                  onClick={handleMuteAll}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-amber-400"
+                >
+                  <MicOff className="w-4 h-4" />
+                  <span>Mute All Guests</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleStopAllVideo}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-red-400"
+                >
+                  <VideoOff className="w-4 h-4" />
+                  <span>Stop All Videos</span>
+                </DropdownMenuItem>
+              </>
+            )}
           </>
         )}
 

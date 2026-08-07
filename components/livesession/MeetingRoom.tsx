@@ -23,6 +23,7 @@ import {
   Hand,
   ChevronLeft,
   ChevronRight,
+  Disc,
 } from "lucide-react";
 
 import { useLowCostCallSettings } from "@/hooks/useLowCostCallSettings";
@@ -417,10 +418,12 @@ const MeetingRoom = () => {
     useMicrophoneState,
     useCameraState,
     useLocalParticipant,
+    useIsCallRecordingInProgress,
   } = useCallStateHooks();
   const call = useCall();
   const callingState = useCallCallingState();
   const allParticipantsRaw = useParticipants();
+  const isRecording = useIsCallRecordingInProgress();
 
   // Deduplicated participant count (filters ghost/stale sessions)
   const uniqueParticipantCount = useMemo(() => {
@@ -831,9 +834,16 @@ const MeetingRoom = () => {
       {/* Header Bar */}
       <header className="relative z-20 w-full px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between backdrop-blur-xl bg-slate-950/70 border-b border-white/10 gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <h1 className="text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
+          <h1 className="text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[160px] sm:max-w-[300px]">
             Techxagon Live Session
           </h1>
+          {isRecording && (
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/50 text-red-400 font-extrabold text-xs animate-pulse shrink-0 shadow-lg shadow-red-500/30" title="This meeting is being recorded">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-md shadow-red-500/80" />
+              <Disc size={14} className="animate-spin text-red-400" />
+              <span>RECORDING IN PROGRESS</span>
+            </div>
+          )}
         </div>
 
         <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-400 shrink-0">

@@ -80,13 +80,67 @@ export const createStreamCallServer = async (
         created_by_id: userId,
         starts_at: startsAt,
         custom: { description, is_public: isPublic },
-        settings_override: { backstage: { enabled: false } },
+        settings_override: {
+          backstage: { enabled: false },
+          recording: {
+            mode: "available",
+            quality: "480p",
+          },
+        },
       },
     });
     return { success: true };
   } catch (error) {
     console.error("[StreamServer] Call creation error:", error);
     return { success: false, error: String(error) };
+  }
+};
+
+/**
+ * Fetch all video call recordings directly from GetStream Video API.
+ */
+export const getStreamRecordingsAction = async () => {
+  if (!streamApiKey || !streamSecretKey) {
+    return { success: false, recordings: [], error: "Stream keys missing" };
+  }
+  const client = new StreamClient(streamApiKey, streamSecretKey);
+  try {
+    const callsRes = await client.video.queryCalls({
+      filter_conditions: {},
+      limit: 30,
+      sort: [{ field: "created_at", direction: -1 }],
+    });
+
+    const allRecordings: any[] = [];
+    if (callsRes.calls?.length) {
+      for (const callObj of callsRes.calls) {
+        const cType = callObj.call.type;
+        const cId = callObj.call.id;
+        try {
+          const recsRes = await client.video.call(cType, cId).listRecordings();
+          if (recsRes.recordings?.length) {
+            for (const rec of recsRes.recordings) {
+              allRecordings.push({
+                ...rec,
+                call_id: cId,
+                call_type: cType,
+                custom: callObj.call.custom,
+              });
+            }
+          }
+        } catch {
+          // ignore calls with no recordings
+        }
+      }
+    }
+
+    return {
+      success: true,
+      recordings: allRecordings,
+    };
+  } catch (error) {
+    console.error("[StreamServer] Fetch recordings error:", error);
+    return { success: false, recordings: [], error: String(error) };
   }
 };
 

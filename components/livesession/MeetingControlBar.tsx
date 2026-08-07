@@ -1,9 +1,11 @@
 "use client";
 
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
-import { Mic, MicOff, Video, VideoOff, Monitor, Hand, PhoneOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, Hand, PhoneOff, Disc } from "lucide-react";
 import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 import { MoreMeetingMenu } from "./MoreMeetingMenu";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface MeetingControlBarProps {
   isMicOff: boolean;
@@ -44,15 +46,45 @@ export function MeetingControlBar({
   onOpenEndMeetingDialog,
   allowedEmojis,
 }: MeetingControlBarProps) {
-  const { useHasPermissions } = useCallStateHooks();
-  const { canScreenShare } = useMeetingPermissions();
+  const call = useCall();
+  const { useHasPermissions, useIsCallRecordingInProgress } = useCallStateHooks();
+  const { canScreenShare, canRecord } = useMeetingPermissions();
+
+  const isRecording = useIsCallRecordingInProgress();
+  const [isTogglingRecord, setIsTogglingRecord] = useState(false);
 
   const hasMicPermission = useHasPermissions("send-audio");
   const hasCamPermission = useHasPermissions("send-video");
 
+  const handleToggleRecord = async () => {
+    if (!call) return;
+    setIsTogglingRecord(true);
+    try {
+      if (isRecording) {
+        await call.stopRecording();
+        toast.info("Recording stopped");
+      } else {
+        await call.startRecording();
+        toast.success("Recording started");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to toggle recording");
+    } finally {
+      setIsTogglingRecord(false);
+    }
+  };
+
   return (
     <div className="fixed bottom-4 left-0 right-0 z-40 flex items-end justify-center px-3">
       <div className="flex items-center gap-1.5 sm:gap-2 backdrop-blur-2xl bg-zinc-950/95 border border-white/12 shadow-2xl rounded-2xl px-3 sm:px-4 py-2.5 max-w-[calc(100vw-24px)] overflow-x-auto">
+
+        {/* ── Active Recording Badge ── */}
+        {isRecording && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-400 font-bold text-[11px] animate-pulse shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-lg shadow-red-500/50" />
+            <span>REC</span>
+          </div>
+        )}
 
         {/* ── Microphone ── */}
         {hasMicPermission && (
@@ -104,6 +136,25 @@ export function MeetingControlBar({
             <Monitor size={20} strokeWidth={2.5} />
             <span className="text-[10px] font-bold tracking-wide">
               {isScreenSharing ? "Sharing" : "Share"}
+            </span>
+          </button>
+        )}
+
+        {/* ── Record Button (Host/Authorized) ── */}
+        {canRecord && (
+          <button
+            onClick={handleToggleRecord}
+            disabled={isTogglingRecord}
+            title={isRecording ? "Stop Recording" : "Record Meeting"}
+            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg disabled:opacity-50 ${
+              isRecording
+                ? "bg-red-600 hover:bg-red-500 border border-red-400 text-white shadow-red-600/40 font-bold"
+                : "bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white hover:shadow-white/10"
+            }`}
+          >
+            <Disc size={20} strokeWidth={2.5} className={isRecording ? "animate-spin" : ""} />
+            <span className="text-[10px] font-bold tracking-wide">
+              {isRecording ? "Stop Rec" : "Record"}
             </span>
           </button>
         )}

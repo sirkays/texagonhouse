@@ -11,6 +11,7 @@ export interface MeetingPermissions {
   canBlockUsers: boolean;
   canEndCall: boolean;
   canScreenShare: boolean;
+  canRecord: boolean;
   ownCapabilities: string[];
 }
 
@@ -30,6 +31,7 @@ export function useMeetingPermissions(): MeetingPermissions {
   const hasBlockPermission = useHasPermissions(OwnCapability.BLOCK_USERS);
   const hasEndCallPermission = useHasPermissions(OwnCapability.END_CALL);
   const hasScreenSharePermission = useHasPermissions(OwnCapability.SCREENSHARE);
+  const hasStartRecordPermission = useHasPermissions(OwnCapability.START_RECORD_CALL);
 
   const userId = session?.user?.id ? String(session.user.id) : null;
   const userRole = session?.user?.role?.toLowerCase() || "";
@@ -62,6 +64,7 @@ export function useMeetingPermissions(): MeetingPermissions {
   const canBlockUsers = isHost || hasBlockPermission;
   const canEndCall = isHost || hasEndCallPermission;
   const canScreenShare = isBrowserScreenShareSupported && (isHost || hasScreenSharePermission);
+  const canRecord = isHost;
 
   return {
     isHost,
@@ -70,6 +73,7 @@ export function useMeetingPermissions(): MeetingPermissions {
     canBlockUsers,
     canEndCall,
     canScreenShare,
+    canRecord,
     ownCapabilities,
   };
 }
