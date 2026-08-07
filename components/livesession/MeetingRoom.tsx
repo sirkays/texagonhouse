@@ -3,11 +3,11 @@
 import {useSession} from "next-auth/react";
 import {
   CallingState,
-  CallParticipantsList,
   PaginatedGridLayout,
   SpeakerLayout,
   useCallStateHooks,
   useCall,
+  type StreamVideoParticipant,
 } from "@stream-io/video-react-sdk";
 import {useState, useEffect, useCallback, useMemo, useRef, memo} from "react";
 import {useRouter, usePathname} from "next/navigation";
@@ -33,7 +33,7 @@ import {
   WifiOff,
   RefreshCw,
 } from "lucide-react";
-import {Spinner} from "../ui/spinner";
+
 import {useLowCostCallSettings} from "@/hooks/useLowCostCallSettings";
 import {useMeetingVisibility} from "@/hooks/useMeetingVisibility";
 import {useMediaPreferences} from "@/hooks/useMediaPreferences";
@@ -108,6 +108,148 @@ const ReconnectionBanner = memo(function ReconnectionBanner({
     >
       {isOffline ? <WifiOff size={16} /> : <RefreshCw size={16} className="animate-spin" />}
       <span>{message}</span>
+    </div>
+  );
+});
+
+// ── Custom Participants List with speaking indicators ──
+
+const AVATAR_COLORS = [
+  "from-teal-600 to-teal-700",
+  "from-green-700 to-green-800",
+  "from-orange-700 to-orange-800",
+  "from-indigo-700 to-indigo-800",
+  "from-rose-700 to-rose-800",
+  "from-amber-600 to-amber-700",
+];
+
+const ParticipantRow = memo(function ParticipantRow({
+  participant,
+  index,
+}: {
+  participant: StreamVideoParticipant;
+  index: number;
+}) {
+  const isSpeaking = participant.isSpeaking;
+  const isCamOff = !participant.videoStream;
+  const name = participant.name || participant.userId || "Guest";
+  const initial = name.charAt(0).toUpperCase();
+  const colorClass = AVATAR_COLORS[index % AVATAR_COLORS.length];
+
+  return (
+    <div
+      className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group ${
+        isSpeaking
+          ? "bg-emerald-500/10 border border-emerald-500/30"
+          : "hover:bg-white/5 border border-transparent"
+      }`}
+    >
+      {/* Avatar with speaking ring */}
+      <div className="relative shrink-0">
+        <div
+          className={`w-9 h-9 rounded-full bg-gradient-to-br ${colorClass} flex items-center justify-center text-white text-sm font-bold shadow-sm ${
+            isSpeaking ? "ring-2 ring-emerald-400 ring-offset-1 ring-offset-[#1a1b1e]" : ""
+          }`}
+        >
+          {initial}
+        </div>
+        {/* Speaking waveform overlay */}
+        {isSpeaking && (
+          <div className="absolute -bottom-0.5 -right-0.5 flex items-end gap-[2px] bg-emerald-500 rounded-full p-1">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="w-[2px] rounded-full bg-white"
+                style={{
+                  height: `${4 + i * 2}px`,
+                  animation: `speakBar${i} 0.5s ease-in-out infinite alternate`,
+                  animationDelay: `${i * 0.1}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Name + speaking label */}
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-medium truncate leading-none ${isSpeaking ? "text-emerald-300" : "text-white"}`}>
+          {name}
+        </p>
+        {isSpeaking && (
+          <p className="text-[10px] text-emerald-400 mt-0.5 font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+            Speaking
+          </p>
+        )}
+        {participant.isLocalParticipant && !isSpeaking && (
+          <p className="text-[10px] text-zinc-500 mt-0.5">You</p>
+        )}
+      </div>
+
+      {/* Mic / Cam status icons */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Mic indicator */}
+        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${
+          isSpeaking ? "bg-emerald-500/20" : "bg-white/5"
+        }`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className={`w-3.5 h-3.5 ${isSpeaking ? "text-emerald-400" : "text-zinc-500"}`}>
+            {participant.audioStream ? (
+              <><path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" /></>
+            ) : (
+              <><path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8M3 3l18 18" /></>
+            )}
+          </svg>
+        </div>
+
+        {/* Cam indicator */}
+        <div className={`w-6 h-6 rounded-md flex items-center justify-center bg-white/5`}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className={`w-3.5 h-3.5 ${!isCamOff ? "text-zinc-400" : "text-zinc-600"}`}>
+            {!isCamOff ? (
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            ) : (
+              <><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /><path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" /></>
+            )}
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ParticipantsList = memo(function ParticipantsList() {
+  const {useParticipants} = useCallStateHooks();
+  const participants = useParticipants();
+
+  // Sort: speaking first, then local user, then alphabetical
+  const sorted = useMemo(() => {
+    return [...participants].sort((a, b) => {
+      if (a.isSpeaking && !b.isSpeaking) return -1;
+      if (!a.isSpeaking && b.isSpeaking) return 1;
+      if (a.isLocalParticipant && !b.isLocalParticipant) return -1;
+      if (!a.isLocalParticipant && b.isLocalParticipant) return 1;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [participants]);
+
+  if (sorted.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-32 text-zinc-600 gap-2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-8 h-8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+        </svg>
+        <p className="text-xs">No participants</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      {sorted.map((p, i) => (
+        <ParticipantRow key={p.sessionId} participant={p} index={i} />
+      ))}
     </div>
   );
 });
@@ -432,39 +574,100 @@ const MeetingRoom = () => {
   // ── Loading / auth checks ──
   if (status === "loading") {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0f1117]">
-        <Spinner size="lg" />
+      <div className="flex h-screen flex-col items-center justify-center bg-[#0f1117] gap-5">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#EF7B55] to-[#f9926b] flex items-center justify-center shadow-lg shadow-[#EF7B55]/20 animate-pulse">
+            <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#0f1117] animate-ping" />
+          <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#0f1117]" />
+        </div>
+        <div className="text-center">
+          <p className="text-white text-lg font-semibold">Loading your session<span className="animate-pulse">...</span></p>
+          <p className="text-zinc-500 text-sm mt-1">Checking authentication</p>
+        </div>
       </div>
     );
   }
 
   if (callingState !== CallingState.JOINED) {
+    // Context-aware status message
+    let statusTitle = "Joining meeting";
+    let statusSubtext = "Setting up your connection...";
+    let iconColor = "from-[#EF7B55] to-[#f9926b]";
+    let showPingDot = true;
+
+    if (callingState === CallingState.RECONNECTING) {
+      statusTitle = "Reconnecting";
+      statusSubtext = "Your connection was interrupted. Attempting to rejoin...";
+      iconColor = "from-amber-500 to-yellow-500";
+    } else if (callingState === CallingState.RECONNECTING_FAILED) {
+      statusTitle = "Connection lost";
+      statusSubtext = "Unable to reconnect. Please check your internet and refresh.";
+      iconColor = "from-red-500 to-rose-500";
+      showPingDot = false;
+    } else if (callingState === CallingState.MIGRATING) {
+      statusTitle = "Switching servers";
+      statusSubtext = "Migrating to a better connection...";
+      iconColor = "from-blue-500 to-indigo-500";
+    } else if (callingState === CallingState.JOINING) {
+      statusTitle = "Joining meeting";
+      statusSubtext = "Almost there, connecting to the session...";
+    } else if (callingState === CallingState.RINGING) {
+      statusTitle = "Ringing";
+      statusSubtext = "Waiting for the host to accept...";
+      iconColor = "from-emerald-500 to-teal-500";
+    } else if (callingState === CallingState.IDLE) {
+      statusTitle = "Preparing meeting";
+      statusSubtext = "Initializing your session...";
+    }
+
     return (
-      <div className="flex h-screen items-center justify-center bg-[#0f1117]">
-        <Spinner size="lg" />
+      <div className="flex h-screen flex-col items-center justify-center bg-[#0f1117] gap-6">
+        <div className="relative">
+          <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${iconColor} flex items-center justify-center shadow-xl shadow-[#EF7B55]/10`}>
+            <svg className="w-10 h-10 text-white animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </div>
+          {showPingDot && (
+            <>
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#0f1117] animate-ping" />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#0f1117]" />
+            </>
+          )}
+        </div>
+        <div className="text-center max-w-xs">
+          <p className="text-white text-xl font-semibold">{statusTitle}<span className="animate-pulse">...</span></p>
+          <p className="text-zinc-500 text-sm mt-2 leading-relaxed">{statusSubtext}</p>
+        </div>
+        {callingState === CallingState.RECONNECTING_FAILED && (
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 px-6 py-2.5 bg-gradient-to-r from-[#EF7B55] to-[#f9926b] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-semibold rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/40 transition-all hover:scale-105 active:scale-95"
+          >
+            Refresh Page
+          </button>
+        )}
       </div>
     );
   }
 
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-gradient-to-br from-slate-950 via-zinc-950 to-slate-950 text-white flex flex-col">
+    <section className="relative h-screen w-full overflow-hidden bg-[#202124] text-white flex flex-col">
       {/* Top Header Bar */}
       <header className="relative z-20 w-full px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between backdrop-blur-xl bg-slate-950/70 border-b border-white/10 gap-2">
-        {/* Left: Brand & Live Indicator */}
+        {/* Left: Brand */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider shrink-0">
-            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-red-500 animate-ping" />
-            <span>LIVE</span>
-          </div>
-          <div className="hidden sm:block h-4 w-px bg-white/15 shrink-0" />
-          <h1 className="hidden sm:block text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
+          <h1 className="text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[200px] sm:max-w-[350px]">
             Techxagon Meeting Room
           </h1>
         </div>
 
         {/* Center: Security Badge (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-zinc-400 shrink-0">
-          <span className="text-emerald-400 font-bold">✓</span>
           <span>End-to-End Encrypted Session</span>
         </div>
 
@@ -507,8 +710,8 @@ const MeetingRoom = () => {
       />
 
       {/* Main Video Stage */}
-      <div className="flex-1 min-h-0 w-full flex items-stretch justify-center p-2 sm:p-3 pb-28">
-        <div className="w-full max-w-[1440px] rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-zinc-950/60 backdrop-blur-md">
+      <div className="flex-1 min-h-0 w-full flex items-stretch justify-center px-1 sm:px-2 pt-1 pb-24 sm:pb-28">
+        <div className="w-full h-full overflow-hidden">
           {callLayoutElement}
         </div>
       </div>
@@ -534,32 +737,42 @@ const MeetingRoom = () => {
         }
       `}} />
 
-      {/* Slide-over Participants Drawer */}
+      {/* Slide-over Participants Drawer — full height, custom list */}
       <div
-        className={`fixed top-[57px] right-0 bottom-24 w-[min(320px,90vw)] sm:w-80 bg-zinc-950/96 border-l border-white/10 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
+        className={`fixed top-[57px] right-0 bottom-0 w-[min(320px,90vw)] sm:w-80 bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
           showParticipants ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex-none p-4 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#EF7B55]" />
-            <h2 className="font-bold text-white text-sm">Participants ({participantCount})</h2>
+        {/* Panel Header */}
+        <div className="flex-none px-4 py-3.5 border-b border-white/8 flex items-center justify-between bg-[#202124]/80">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#EF7B55]/15 flex items-center justify-center">
+              <Users className="w-4 h-4 text-[#EF7B55]" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-white text-sm leading-none">Participants</h2>
+              <p className="text-zinc-500 text-[11px] mt-0.5">{participantCount} in call</p>
+            </div>
           </div>
           <button
             onClick={() => setShowParticipants(false)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition text-sm cursor-pointer"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/10 transition cursor-pointer"
           >
-            ✕
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto p-2">
-          <CallParticipantsList onClose={() => setShowParticipants(false)} />
+
+        {/* Participants Scrollable List */}
+        <div className="flex-1 min-h-0 overflow-y-auto participants-scroll px-2 py-2">
+          <ParticipantsList />
         </div>
       </div>
 
       {/* ── Chat Drawer ── */}
       <div
-        className={`fixed top-[57px] right-0 bottom-24 w-[min(360px,90vw)] sm:w-[380px] bg-zinc-950/96 border-l border-white/10 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
+        className={`fixed top-[57px] right-0 bottom-0 w-[min(360px,90vw)] sm:w-[380px] bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
           showChat ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -578,7 +791,7 @@ const MeetingRoom = () => {
         </div>
 
         {/* Chat Messages */}
-        <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto participants-scroll p-3 space-y-3">
           {chatMessages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-zinc-500 gap-2">
               <MessageCircle className="w-8 h-8 opacity-30" />
