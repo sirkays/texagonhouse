@@ -11,7 +11,7 @@ import "./globals.css";
 import {NotificationProvider} from "@/components/NotificationProvider";
 
 export const metadata: Metadata = {
-  title: "Texagon Educational Platform",
+  title: "Techxagon Educational Platform",
   description:
     "A video conferencing and educational platform to help students learn and teachers teach.",
   generator: "Epic House",
