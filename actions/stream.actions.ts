@@ -84,7 +84,6 @@ export const createStreamCallServer = async (
           backstage: { enabled: false },
           recording: {
             mode: "available",
-            quality: "480p",
           },
         },
       },

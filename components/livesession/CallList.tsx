@@ -259,7 +259,7 @@ const CallList = ({
               <div className="flex items-center space-x-2">
                 <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 text-red-600 font-bold text-[11px]">
                   <Film className="w-3.5 h-3.5" />
-                  Recorded Meeting (480p)
+                  Recorded Meeting
                 </span>
               </div>
               <div className="flex items-center space-x-1 text-xs text-gray-500 font-medium">
