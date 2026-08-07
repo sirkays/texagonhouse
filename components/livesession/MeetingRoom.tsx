@@ -792,7 +792,7 @@ const MeetingRoom = () => {
 
       {/* Slide-over Participants Drawer — full height, custom list */}
       <div
-        className={`fixed top-[57px] right-0 bottom-0 w-[min(320px,90vw)] sm:w-80 bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
+        className={`fixed top-[57px] right-0 bottom-0 w-[min(320px,90vw)] sm:w-80 bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-50 shadow-2xl flex flex-col ${
           showParticipants ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -825,7 +825,7 @@ const MeetingRoom = () => {
 
       {/* ── Chat Drawer ── */}
       <div
-        className={`fixed top-[57px] right-0 bottom-0 w-[min(360px,90vw)] sm:w-[380px] bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-30 shadow-2xl flex flex-col ${
+        className={`fixed top-[57px] right-0 bottom-0 w-[min(360px,90vw)] sm:w-[380px] bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-50 shadow-2xl flex flex-col ${
           showChat ? "translate-x-0" : "translate-x-full"
         }`}
       >
