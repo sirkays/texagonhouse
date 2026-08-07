@@ -153,11 +153,6 @@ const PublicMeetingPage = () => {
                   if (callingState !== CallingState.JOINED && callingState !== CallingState.JOINING) {
                     hasJoinedRef.current = true;
                     activeJoiningCallIds.add(id);
-                    // Proactively leave any stale session before joining.
-                    // On page reload, beforeunload may not have fired reliably,
-                    // leaving an orphaned session on Stream's server.
-                    // This is a no-op (caught silently) if no session exists.
-                    try { await c.leave(); } catch { /* expected if not joined */ }
                     await c.join();
                   }
                 }
