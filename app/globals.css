@@ -190,6 +190,25 @@ button:focus-visible {
 
 /* ======== stream css overrides ======== */
 
+/* ── Fullscreen screen share ── */
+:fullscreen .str-video__speaker-layout__wrapper,
+:-webkit-full-screen .str-video__speaker-layout__wrapper {
+  height: 100vh !important;
+  max-height: 100vh !important;
+}
+
+:fullscreen .str-video__speaker-layout,
+:-webkit-full-screen .str-video__speaker-layout {
+  height: 100vh !important;
+  background: #000 !important;
+}
+
+:fullscreen .str-video__speaker-layout .str-video__speaker-layout__spotlight,
+:-webkit-full-screen .str-video__speaker-layout .str-video__speaker-layout__spotlight {
+  flex: 1 1 auto !important;
+}
+
+
 .str-video__call-stats {
   max-width: 500px;
   position: relative;

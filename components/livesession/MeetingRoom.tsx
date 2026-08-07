@@ -265,6 +265,8 @@ const MeetingRoom = () => {
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024
   );
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const screenShareContainerRef = useRef<HTMLDivElement>(null);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -330,6 +332,23 @@ const MeetingRoom = () => {
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // ── Fullscreen tracking ──
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = screenShareContainerRef.current;
+    if (!el) return;
+    if (!document.fullscreenElement) {
+      el.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
   }, []);
 
   // ── Group size via useMemo (max 6 tiles/page for cost) ──
@@ -549,13 +568,47 @@ const MeetingRoom = () => {
 
   // ── Layout: useMemo-computed JSX element (NOT a component) ──
   const callLayoutElement = useMemo(() => {
-    // Screen sharing active: SpeakerLayout with screen share on top, participants below
+    // Screen sharing active: SpeakerLayout with fullscreen support
     if (someoneSharing) {
       return (
-        <div className="w-full h-full">
-          <SpeakerLayout
-            participantsBarPosition="bottom"
-          />
+        <div
+          ref={screenShareContainerRef}
+          className="w-full h-full relative group/screenshare"
+        >
+          <SpeakerLayout participantsBarPosition="bottom" />
+
+          {/* Fullscreen toggle button — appears on hover */}
+          <button
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit fullscreen" : "View fullscreen"}
+            className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white text-xs font-medium backdrop-blur-sm border border-white/10 opacity-0 group-hover/screenshare:opacity-100 transition-all duration-200 shadow-lg"
+          >
+            {isFullscreen ? (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+                </svg>
+                Exit Fullscreen
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                </svg>
+                Fullscreen
+              </>
+            )}
+          </button>
+
+          {/* Fullscreen hint badge — shown in fullscreen mode */}
+          {isFullscreen && (
+            <div className="absolute bottom-36 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 text-white/70 text-xs backdrop-blur-sm border border-white/10 pointer-events-none animate-fade-in">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25" />
+              </svg>
+              Press <kbd className="mx-1 px-1.5 py-0.5 rounded bg-white/10 font-mono text-[10px]">Esc</kbd> or hover top-right to exit fullscreen
+            </div>
+          )}
         </div>
       );
     }
@@ -569,7 +622,7 @@ const MeetingRoom = () => {
         />
       </div>
     );
-  }, [someoneSharing, groupSize, participantCount]);
+  }, [someoneSharing, groupSize, participantCount, isFullscreen, toggleFullscreen]);
 
   // ── Loading / auth checks ──
   if (status === "loading") {
