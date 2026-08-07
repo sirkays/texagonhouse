@@ -30,11 +30,17 @@ export async function GET(
 
       const custom = response.call?.custom || {};
       const isPublic = custom.is_public === true || custom.is_public === "true";
+      const isRoomOpen = custom.is_room_open !== false && custom.is_room_open !== "false";
+      const hostId = response.call?.created_by_id || null;
+      const endedAt = response.call?.ended_at || null;
 
       const result = {
         is_public: isPublic,
+        is_room_open: isRoomOpen,
         title: custom.description || "Meeting",
         call_type: callType,
+        host_id: hostId,
+        ended_at: endedAt,
       };
 
       if (isPublic) {

@@ -12,20 +12,27 @@ import {
   StreamVideoClient,
   StreamCall,
   StreamTheme,
+  CallingState,
 } from "@stream-io/video-react-sdk";
 import { useParams } from "next/navigation";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { tokenProvider } from "@/actions/stream.actions";
 
 // Memoize at module level — tokenProvider is a stable server action reference
 const stableTokenProvider = tokenProvider;
 
 const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY!;
+// Global module-level lock for in-flight call joins
+const activeJoiningCallIds = new Set<string>();
 
 interface MeetingInfo {
   is_public: boolean;
+  is_room_open?: boolean;
   title?: string;
   call_type?: string;
+  host_id?: string;
+  ended_at?: string | null;
+  status?: string;
 }
 
 /**
@@ -43,9 +50,23 @@ const PublicMeetingPage = () => {
   const [videoClient, setVideoClient] = useState<StreamVideoClient | null>(null);
   const [call, setCall] = useState<any>(null);
   const [isCallLoading, setIsCallLoading] = useState(true);
+  const [isCallEnded, setIsCallEnded] = useState(false);
   const clientRef = useRef<StreamVideoClient | null>(null);
+  const callRef = useRef<any>(null);
   const hasJoinedRef = useRef(false);
   const clientCreatedForUserRef = useRef<string | null>(null);
+
+  // Host check helper
+  const isHostUser = useMemo(() => {
+    if (!session?.user) return false;
+    const userId = String(session.user.id);
+    const userRole = (session.user as any)?.role?.toLowerCase() || "";
+    if (meetingInfo?.host_id && String(meetingInfo.host_id) === userId) return true;
+    if (userRole.includes("teacher") || userRole.includes("instructor") || userRole === "tutor" || userRole.includes("admin")) {
+      return true;
+    }
+    return false;
+  }, [session?.user, meetingInfo?.host_id]);
 
   // Step 1: Check if meeting is public
   useEffect(() => {
@@ -57,10 +78,10 @@ const PublicMeetingPage = () => {
           const data = await res.json();
           setMeetingInfo(data);
         } else {
-          setMeetingInfo({ is_public: false });
+          setMeetingInfo({ is_public: false, is_room_open: true });
         }
       } catch {
-        setMeetingInfo({ is_public: false });
+        setMeetingInfo({ is_public: false, is_room_open: true });
       } finally {
         setIsCheckingPublic(false);
       }
@@ -73,6 +94,12 @@ const PublicMeetingPage = () => {
   // from deps to prevent client recreation when meeting info arrives.
   useEffect(() => {
     if (status !== "authenticated" || !session?.user || !id || isCheckingPublic) return;
+
+    // Room Closed Enforcement: If room is closed and user is NOT host, do not create client or join call
+    if (meetingInfo?.is_room_open === false && !isHostUser) {
+      setIsCallLoading(false);
+      return;
+    }
 
     const userId = String(session.user.id);
 
@@ -103,20 +130,42 @@ const PublicMeetingPage = () => {
         try {
           const c = client.call(callType, id);
           await c.getOrCreate();
+
+          // Check if the call has been ended by the host
+          // Stream's CallState exposes endedAt as a getter
+          if (c.state.endedAt) {
+            setIsCallEnded(true);
+            setIsCallLoading(false);
+            return;
+          }
+
           // Only accept if the call has real custom data (not an empty auto-created shell)
           const custom = c.state.custom || {};
           if (Object.keys(custom).length > 0 || callType === "default") {
+            callRef.current = c;
+
             // Guard: prevent duplicate call.join()
-            if (!hasJoinedRef.current) {
+            if (!hasJoinedRef.current && !activeJoiningCallIds.has(id)) {
               try {
                 const savedSetup = sessionStorage.getItem(`techxagon_setup_${id}`);
                 if (savedSetup === "true") {
-                  hasJoinedRef.current = true;
-                  await c.join();
+                  const callingState = c.state?.callingState;
+                  if (callingState !== CallingState.JOINED && callingState !== CallingState.JOINING) {
+                    hasJoinedRef.current = true;
+                    activeJoiningCallIds.add(id);
+                    // Proactively leave any stale session before joining.
+                    // On page reload, beforeunload may not have fired reliably,
+                    // leaving an orphaned session on Stream's server.
+                    // This is a no-op (caught silently) if no session exists.
+                    try { await c.leave(); } catch { /* expected if not joined */ }
+                    await c.join();
+                  }
                 }
               } catch (err) {
                 hasJoinedRef.current = false;
                 console.error("Auto-join error:", err);
+              } finally {
+                activeJoiningCallIds.delete(id);
               }
             }
             setCall(c);
@@ -133,13 +182,18 @@ const PublicMeetingPage = () => {
     fetchCall();
 
     return () => {
+      if (callRef.current) {
+        callRef.current.leave().catch(() => {});
+      }
       client.disconnectUser();
       setVideoClient(null);
       clientRef.current = null;
+      callRef.current = null;
       clientCreatedForUserRef.current = null;
       hasJoinedRef.current = false;
+      activeJoiningCallIds.delete(id);
     };
-  }, [status, session?.user?.id, id, isCheckingPublic]);
+  }, [status, session?.user?.id, id, isCheckingPublic, meetingInfo?.is_room_open, isHostUser]);
 
   // Restore setup complete state for authenticated user on reload
   useEffect(() => {
@@ -184,6 +238,53 @@ const PublicMeetingPage = () => {
           <p className="text-white text-lg font-semibold">Verifying meeting access<span className="animate-pulse">...</span></p>
           <p className="text-zinc-500 text-sm mt-1">Please wait while we check your permissions</p>
         </div>
+      </div>
+    );
+  }
+  // ── MEETING ENDED CHECK ──
+  // If the meeting info says ended OR the call state showed ended
+  if (isCallEnded || meetingInfo?.ended_at) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f1117] gap-5 text-white p-6">
+        <div className="bg-[#1a1d26] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-zinc-700/50 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">The call has been ended by the host</h2>
+          <a
+            href="/"
+            className="mt-4 inline-block w-full px-6 py-3 bg-[#2a2d36] hover:bg-[#3a3d46] text-white font-semibold text-sm rounded-xl transition-all border border-white/10"
+          >
+            Back to Home
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // ── ROOM CLOSED FOR NON-HOST USER ──
+  if (meetingInfo?.is_room_open === false && !isHostUser) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f1117] gap-5 text-white p-6">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl">
+          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <div className="text-center max-w-sm">
+          <h2 className="text-xl font-bold text-white">Room Access Closed</h2>
+          <p className="text-zinc-400 text-sm mt-2 leading-relaxed">
+            Room access has been closed by the host. New participants cannot join at this time.
+          </p>
+        </div>
+        <a
+          href="/dashboard"
+          className="mt-2 px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/15 text-white font-semibold text-sm rounded-xl transition-all"
+        >
+          Return to Dashboard
+        </a>
       </div>
     );
   }

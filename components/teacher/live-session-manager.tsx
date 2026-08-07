@@ -207,6 +207,23 @@ export function LiveSessionManager() {
     alert(`Joining live session: ${session.title}`);
   };
 
+  const handleToggleRoomAccess = (sessionId: number) => {
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === sessionId) {
+          const nextState = s.is_room_open === false ? true : false;
+          alert(
+            nextState
+              ? "Room opened. Participants can join."
+              : "Room closed. New participants cannot join."
+          );
+          return { ...s, is_room_open: nextState };
+        }
+        return s;
+      })
+    );
+  };
+
   const handleSaveDraft = () => {
     localStorage.setItem("sessionDraft", JSON.stringify(newSession));
     alert("Session saved as draft!");
@@ -520,6 +537,14 @@ export function LiveSessionManager() {
                             <span className="capitalize">{session.status}</span>
                           </div>
                         </Badge>
+                        <Badge
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            (session as any).is_room_open === false
+                              ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                              : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                          }`}>
+                          {(session as any).is_room_open === false ? "Room Closed" : "Room Open"}
+                        </Badge>
                       </div>
                       <p className="text-xs xs:text-sm text-slate-600 dark:text-slate-400 leading-relaxed max-w-xl">
                         {session.description}
@@ -539,7 +564,14 @@ export function LiveSessionManager() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 self-end sm:self-center">
+                    <div className="flex flex-wrap gap-2 self-end sm:self-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleToggleRoomAccess(session.id)}
+                        className="text-xs border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                        {(session as any).is_room_open === false ? "Open Room" : "Close Room"}
+                      </Button>
                       {session.status === "live" && (
                         <Button
                           size="sm"

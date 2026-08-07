@@ -43,7 +43,12 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
           body: JSON.stringify({ guestId: idToUse, meetingId }),
         });
         if (!res.ok) {
-          // Fallback to server action if API route fails
+          // If 403, the meeting is ended or room is closed — do NOT fall back
+          if (res.status === 403) {
+            const errData = await res.json().catch(() => ({ error: 'Meeting access denied' }));
+            throw new Error(errData.error || 'Meeting access denied');
+          }
+          // For other errors, fallback to server action
           return guestTokenProvider(idToUse);
         }
         const data = await res.json();
@@ -72,6 +77,16 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
 
       const streamCall = client.call("default", meetingId);
       await streamCall.getOrCreate();
+
+      // Check if the call has been ended by the host
+      if (streamCall.state.endedAt) {
+        setError("This meeting has been ended by the host.");
+        client.disconnectUser();
+        setVideoClient(null);
+        setIsJoining(false);
+        sessionStorage.removeItem(`techxagon_guest_${meetingId}`);
+        return;
+      }
       
       if (autoJoin) {
         try {
@@ -94,7 +109,7 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
       }
     } catch (err: any) {
       console.error("[GuestJoinPage] Error connecting guest:", err);
-      setError("Failed to connect to the meeting. Please try again.");
+      setError(err?.message || "Failed to connect to the meeting. Please try again.");
       sessionStorage.removeItem(`techxagon_guest_${meetingId}`);
     } finally {
       setIsJoining(false);

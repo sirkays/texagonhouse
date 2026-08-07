@@ -81,15 +81,27 @@ export async function POST(request: NextRequest) {
 
     const client = new StreamClient(streamApiKey, streamSecretKey);
 
-    // Verify meeting exists and is public
+    // Verify meeting exists, is public, room is open, and NOT ended
     let isPublicMeeting = false;
+    let isRoomOpen = true;
+    let isCallEnded = false;
     for (const callType of ['default', 'livestream'] as const) {
       try {
         const call = client.video.call(callType, meetingId);
         const response = await call.get();
+
+        // Check if the call has been ended by the host
+        if (response.call?.ended_at) {
+          isCallEnded = true;
+          break;
+        }
+
         const custom = response.call?.custom || {};
         if (custom.is_public === true || custom.is_public === 'true') {
           isPublicMeeting = true;
+          if (custom.is_room_open === false || custom.is_room_open === 'false') {
+            isRoomOpen = false;
+          }
           break;
         }
       } catch {
@@ -97,9 +109,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (isCallEnded) {
+      return NextResponse.json(
+        { error: 'This meeting has been ended by the host.' },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
     if (!isPublicMeeting) {
       return NextResponse.json(
         { error: 'Meeting not found or not public' },
+        { status: 403, headers: { 'Cache-Control': 'no-store' } }
+      );
+    }
+
+    if (!isRoomOpen) {
+      return NextResponse.json(
+        { error: 'Room access has been closed by the host.' },
         { status: 403, headers: { 'Cache-Control': 'no-store' } }
       );
     }

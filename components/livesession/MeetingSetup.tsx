@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import {
+  CallingState,
   DeviceSettings,
   useCall,
   useCallStateHooks,
@@ -250,7 +251,10 @@ const MeetingSetup = ({
               // Persist media preferences before joining
               persistCurrentState(!isMuted, !isVideoDisabled);
               try {
-                await call.join();
+                const callingState = call.state?.callingState;
+                if (callingState !== CallingState.JOINED && callingState !== CallingState.JOINING) {
+                  await call.join();
+                }
                 await call.updateCallMembers({
                   update_members: [{ user_id: String(session.user?.id) }],
                 }).catch(() => {});

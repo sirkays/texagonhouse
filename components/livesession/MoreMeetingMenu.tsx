@@ -1,0 +1,170 @@
+"use client";
+
+import { useCall } from "@stream-io/video-react-sdk";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import {
+  MoreHorizontal,
+  Users,
+  MessageCircle,
+  Smile,
+  MicOff,
+  VideoOff,
+  PhoneOff,
+} from "lucide-react";
+import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
+
+interface MoreMeetingMenuProps {
+  participantCount: number;
+  showParticipants: boolean;
+  setShowParticipants: (value: boolean | ((prev: boolean) => boolean)) => void;
+  showChat: boolean;
+  setShowChat: (value: boolean | ((prev: boolean) => boolean)) => void;
+  onSendReaction: (emoji: string) => void;
+  onOpenEndMeetingDialog: () => void;
+  allowedEmojis: string[];
+}
+
+export function MoreMeetingMenu({
+  participantCount,
+  showParticipants,
+  setShowParticipants,
+  showChat,
+  setShowChat,
+  onSendReaction,
+  onOpenEndMeetingDialog,
+  allowedEmojis,
+}: MoreMeetingMenuProps) {
+  const call = useCall();
+  const { isHost, canMuteUsers, canEndCall } = useMeetingPermissions();
+
+  const handleMuteAll = async () => {
+    if (!call) return;
+    try {
+      await call.muteAllUsers("audio");
+      toast.success("Muted all participants");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to mute all participants.");
+    }
+  };
+
+  const handleStopAllVideo = async () => {
+    if (!call) return;
+    try {
+      await call.muteAllUsers("video");
+      toast.success("Stopped video for all participants");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to stop video for all participants.");
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg hover:shadow-white/10"
+        title="More Actions"
+      >
+        <MoreHorizontal size={20} strokeWidth={2.5} />
+        <span className="text-[10px] font-bold tracking-wide">More</span>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent className="border border-white/15 bg-zinc-900/98 backdrop-blur-xl text-white rounded-2xl p-2 shadow-2xl min-w-[200px] z-50">
+        {/* People / Participants toggle */}
+        <DropdownMenuItem
+          onClick={() => {
+            setShowParticipants((prev) => !prev);
+            if (showChat) setShowChat(false);
+          }}
+          className="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-zinc-200"
+        >
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#EF7B55]" />
+            <span>People ({participantCount})</span>
+          </div>
+          {showParticipants && <span className="text-[10px] text-[#EF7B55]">Active</span>}
+        </DropdownMenuItem>
+
+        {/* Chat toggle */}
+        <DropdownMenuItem
+          onClick={() => {
+            setShowChat((prev) => !prev);
+            if (showParticipants) setShowParticipants(false);
+          }}
+          className="flex items-center justify-between px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-zinc-200"
+        >
+          <div className="flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-sky-400" />
+            <span>Chat</span>
+          </div>
+          {showChat && <span className="text-[10px] text-sky-400">Active</span>}
+        </DropdownMenuItem>
+
+        {/* Reactions Palette inline */}
+        <DropdownMenuSeparator className="bg-white/10 my-1" />
+        <div className="px-3 py-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5 mb-1.5">
+            <Smile className="w-3.5 h-3.5 text-amber-400" />
+            Reactions
+          </span>
+          <div className="flex flex-wrap gap-1">
+            {allowedEmojis.map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => onSendReaction(emoji)}
+                className="p-1.5 text-base hover:bg-white/15 rounded-lg transition cursor-pointer hover:scale-125"
+                title={`Send ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Host Actions */}
+        {isHost && canMuteUsers && (
+          <>
+            <DropdownMenuSeparator className="bg-white/10 my-1" />
+            <span className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              Host Tools
+            </span>
+            <DropdownMenuItem
+              onClick={handleMuteAll}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-amber-400"
+            >
+              <MicOff className="w-4 h-4" />
+              <span>Mute All Guests</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={handleStopAllVideo}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-red-400"
+            >
+              <VideoOff className="w-4 h-4" />
+              <span>Stop All Videos</span>
+            </DropdownMenuItem>
+          </>
+        )}
+
+        {/* Host End Meeting for Everyone */}
+        {isHost && canEndCall && (
+          <>
+            <DropdownMenuSeparator className="bg-white/10 my-1" />
+            <DropdownMenuItem
+              onClick={onOpenEndMeetingDialog}
+              className="flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl hover:bg-red-600/30 cursor-pointer text-red-400"
+            >
+              <PhoneOff className="w-4 h-4 text-red-500" />
+              <span>End Meeting for Everyone</span>
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
