@@ -7,7 +7,7 @@ import { Trash2, Calendar, Video, Clock, Play, Download, X, Film, ExternalLink }
 import { toast } from "sonner";
 import { Spinner } from "../ui/spinner";
 
-import { getStreamRecordingsAction } from "@/actions/stream.actions";
+import { getStreamRecordingsAction, deleteStreamRecordingAction } from "@/actions/stream.actions";
 
 interface Meeting {
   id: string;
@@ -16,6 +16,9 @@ interface Meeting {
   description?: string;
   join_url?: string;
   recording_url?: string;
+  call_type?: string;
+  call_id?: string;
+  session_id?: string;
 }
 
 const CallList = ({
@@ -94,8 +97,11 @@ const CallList = ({
                   id: rec.filename || rec.url || `stream-rec-${idx}`,
                   scheduled_at: rec.start_time || new Date().toISOString(),
                   title: rec.custom?.title || rec.custom?.description || `Recorded Meeting - ${formattedDate}`,
-                  description: `Stream Cloud Recording (SD 480p) • ${rec.call_id || "Live Session"}`,
+                  description: `Stream Cloud Recording • ${rec.call_id || "Live Session"}`,
                   recording_url: rec.url,
+                  call_type: rec.call_type || "default",
+                  call_id: rec.call_id,
+                  session_id: rec.session_id,
                 };
               });
             }
@@ -188,6 +194,37 @@ const CallList = ({
       });
     } finally {
       setDeleting((prev) => ({ ...prev, [meetingId]: false }));
+    }
+  };
+
+  const handleDeleteRecording = async (meeting: Meeting) => {
+    if (!confirm("Are you sure you want to delete this recording?")) return;
+    setDeleting((prev) => ({ ...prev, [meeting.id]: true }));
+    try {
+      if (meeting.call_id && meeting.session_id) {
+        const res = await deleteStreamRecordingAction(
+          meeting.call_type || "default",
+          meeting.call_id,
+          meeting.session_id
+        );
+        if (!res.success) {
+          throw new Error(res.error || "Failed to delete recording");
+        }
+      } else {
+        await handleDeleteMeeting(meeting.id);
+      }
+      toast.success("Recording deleted successfully", {
+        duration: 3000,
+        className: "bg-green-50 text-green-700 rounded-lg py-3 px-4 shadow-sm",
+      });
+      setMeetings((prev) => prev.filter((m) => m.id !== meeting.id));
+    } catch (err: any) {
+      toast.error(`Failed to delete recording: ${err.message}`, {
+        duration: 4000,
+        className: "bg-red-50 text-red-700 rounded-lg py-3 px-4 shadow-sm",
+      });
+    } finally {
+      setDeleting((prev) => ({ ...prev, [meeting.id]: false }));
     }
   };
 
@@ -299,6 +336,20 @@ const CallList = ({
               <Download size={14} />
               <span className="hidden sm:inline">Download</span>
             </a>
+
+            {/* Delete Button */}
+            <button
+              onClick={() => handleDeleteRecording(meeting)}
+              disabled={deleting[meeting.id]}
+              className="flex items-center justify-center p-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 font-bold transition disabled:opacity-50 cursor-pointer"
+              title="Delete Recording"
+            >
+              {deleting[meeting.id] ? (
+                <Spinner size="sm" className="text-red-600" />
+              ) : (
+                <Trash2 size={16} />
+              )}
+            </button>
           </div>
         </div>
       </div>

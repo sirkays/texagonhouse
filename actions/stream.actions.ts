@@ -143,3 +143,29 @@ export const getStreamRecordingsAction = async () => {
   }
 };
 
+/**
+ * Delete a specific video recording from GetStream Cloud Storage.
+ */
+export const deleteStreamRecordingAction = async (
+  callType: string,
+  callId: string,
+  sessionId: string
+) => {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) throw new Error("User is not authenticated");
+
+  if (!streamApiKey || !streamSecretKey) {
+    return { success: false, error: "Stream API keys missing" };
+  }
+
+  const client = new StreamClient(streamApiKey, streamSecretKey, { timeout: 10000 });
+  try {
+    const call = client.video.call(callType || "default", callId);
+    await call.deleteRecording({ session_id: sessionId });
+    return { success: true };
+  } catch (error: any) {
+    console.error("[StreamServer] Delete recording error:", error);
+    return { success: false, error: error?.message || String(error) };
+  }
+};
+
