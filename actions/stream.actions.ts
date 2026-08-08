@@ -149,7 +149,8 @@ export const getStreamRecordingsAction = async () => {
 export const deleteStreamRecordingAction = async (
   callType: string,
   callId: string,
-  sessionId: string
+  sessionId: string,
+  filename: string
 ) => {
   const session = await getServerSession(authOptions);
   if (!session?.user) throw new Error("User is not authenticated");
@@ -161,7 +162,7 @@ export const deleteStreamRecordingAction = async (
   const client = new StreamClient(streamApiKey, streamSecretKey, { timeout: 10000 });
   try {
     const call = client.video.call(callType || "default", callId);
-    await call.deleteRecording({ session_id: sessionId });
+    await call.deleteRecording({ session: sessionId, filename: filename });
     return { success: true };
   } catch (error: any) {
     console.error("[StreamServer] Delete recording error:", error);

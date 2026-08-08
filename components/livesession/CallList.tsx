@@ -19,6 +19,7 @@ interface Meeting {
   call_type?: string;
   call_id?: string;
   session_id?: string;
+  filename?: string;
 }
 
 const CallList = ({
@@ -102,6 +103,7 @@ const CallList = ({
                   call_type: rec.call_type || "default",
                   call_id: rec.call_id,
                   session_id: rec.session_id,
+                  filename: rec.filename,
                 };
               });
             }
@@ -201,11 +203,12 @@ const CallList = ({
     if (!confirm("Are you sure you want to delete this recording?")) return;
     setDeleting((prev) => ({ ...prev, [meeting.id]: true }));
     try {
-      if (meeting.call_id && meeting.session_id) {
+      if (meeting.call_id && meeting.session_id && meeting.filename) {
         const res = await deleteStreamRecordingAction(
           meeting.call_type || "default",
           meeting.call_id,
-          meeting.session_id
+          meeting.session_id,
+          meeting.filename
         );
         if (!res.success) {
           throw new Error(res.error || "Failed to delete recording");
