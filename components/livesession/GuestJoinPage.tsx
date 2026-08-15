@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { StreamVideo, StreamVideoClient, StreamCall, StreamTheme } from "@stream-io/video-react-sdk";
-import { guestTokenProvider } from "@/actions/stream.actions";
+
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
@@ -48,15 +48,27 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
             const errData = await res.json().catch(() => ({ error: 'Meeting access denied' }));
             throw new Error(errData.error || 'Meeting access denied');
           }
-          // For other errors, fallback to server action
-          return guestTokenProvider(idToUse);
+          // Non-403 error — throw to trigger retry at call site
+          throw new Error(`Token request failed: ${res.status}`);
         }
         const data = await res.json();
         return data.token;
       };
 
-      // Get initial token
-      const initialToken = await guestTokenProviderCallback();
+      // Bounded retry for transient token failures (not 403)
+      let initialToken: string | undefined;
+      let tokenErr: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+        try {
+          initialToken = await guestTokenProviderCallback();
+          break;
+        } catch (err: unknown) {
+          tokenErr = err;
+          if (String(err).includes('access denied') || String(err).includes('403')) break;
+        }
+      }
+      if (!initialToken) throw tokenErr;
 
       const client = new StreamVideoClient({
         apiKey: API_KEY,
@@ -75,8 +87,10 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
 
       setVideoClient(client);
 
-      const streamCall = client.call("default", meetingId);
-      await streamCall.getOrCreate();
+      const resolvedCallType = (callType === 'livestream' ? 'livestream' : 'default') as 'default' | 'livestream';
+      const streamCall = client.call(resolvedCallType, meetingId);
+      // get() only — never create from the join flow
+      await streamCall.get();
 
       // Check if the call has been ended by the host
       if (streamCall.state.endedAt) {
@@ -395,9 +409,12 @@ const GuestMeetingSetup = ({
           className="w-full bg-gradient-to-r from-[#EF7B55] to-[#f9926b] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2.5 text-base cursor-pointer"
           onClick={async () => {
             try {
+              // Ensure mic and camera are disabled before joining (host must grant permission to enable)
+              await call.microphone.disable().catch(() => {});
+              await call.camera.disable().catch(() => {});
               await call.join();
             } catch (joinErr) {
-              console.warn("[GuestMeetingSetup] Non-fatal join notice:", joinErr);
+              console.warn('[GuestMeetingSetup] Non-fatal join notice:', joinErr);
             }
             setIsSetupComplete(true);
           }}

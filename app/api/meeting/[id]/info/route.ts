@@ -31,7 +31,7 @@ export async function GET(
       const custom = response.call?.custom || {};
       const isPublic = custom.is_public === true || custom.is_public === "true";
       const isRoomOpen = custom.is_room_open !== false && custom.is_room_open !== "false";
-      const hostId = response.call?.created_by_id || null;
+      const hostId = response.call?.created_by?.id || null;
       const endedAt = response.call?.ended_at || null;
 
       const result = {

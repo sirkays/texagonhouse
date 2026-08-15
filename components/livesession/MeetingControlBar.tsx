@@ -48,10 +48,11 @@ export function MeetingControlBar({
 }: MeetingControlBarProps) {
   const call = useCall();
   const { useHasPermissions, useIsCallRecordingInProgress } = useCallStateHooks();
-  const { canScreenShare, canRecord } = useMeetingPermissions();
+  const { canScreenShare, canRecord, canMuteUsers } = useMeetingPermissions();
 
   const isRecording = useIsCallRecordingInProgress();
   const [isTogglingRecord, setIsTogglingRecord] = useState(false);
+  const [isMutingAll, setIsMutingAll] = useState(false);
 
   const hasMicPermission = useHasPermissions("send-audio");
   const hasCamPermission = useHasPermissions("send-video");
@@ -74,9 +75,25 @@ export function MeetingControlBar({
     }
   };
 
+  const handleMuteAll = async () => {
+    if (!call) return;
+    setIsMutingAll(true);
+    try {
+      await call.muteAllUsers('audio');
+      toast.success('All participants muted');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to mute all');
+    } finally {
+      setIsMutingAll(false);
+    }
+  };
+
   return (
-    <div className="fixed bottom-4 left-0 right-0 z-40 flex items-end justify-center px-3">
-      <div className="flex items-center gap-1.5 sm:gap-2 backdrop-blur-2xl bg-zinc-950/95 border border-white/12 shadow-2xl rounded-2xl px-3 sm:px-4 py-2.5 max-w-[calc(100vw-24px)] overflow-x-auto">
+    <div
+      className="fixed bottom-0 left-0 right-0 z-40 flex items-end justify-center px-2 pb-[env(safe-area-inset-bottom,0px)]"
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 8px)' }}
+    >
+      <div className="flex items-center gap-1 sm:gap-2 bg-[#1a1c21] border-t border-white/8 shadow-2xl w-full sm:w-auto sm:rounded-2xl sm:mb-2 px-2 sm:px-4 py-2 sm:py-2.5 overflow-x-auto max-w-full" style={{ minHeight: '56px' }}>
 
         {/* ── Active Recording Badge ── */}
         {isRecording && (
@@ -91,7 +108,7 @@ export function MeetingControlBar({
           <button
             onClick={onToggleMic}
             title={isMicOff ? "Unmute" : "Mute"}
-            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] ${
               isMicOff
                 ? "bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/20"
                 : "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:shadow-emerald-500/20"
@@ -109,7 +126,7 @@ export function MeetingControlBar({
           <button
             onClick={onToggleCam}
             title={isCamOff ? "Start Camera" : "Stop Camera"}
-            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] ${
               isCamOff
                 ? "bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 hover:shadow-red-500/20"
                 : "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:shadow-emerald-500/20"
@@ -127,7 +144,7 @@ export function MeetingControlBar({
           <button
             onClick={onScreenShare}
             title={isScreenSharing ? "Stop Sharing" : "Share Screen"}
-            className={`hidden sm:flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+            className={`hidden sm:flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] ${
               isScreenSharing
                 ? "bg-sky-500 hover:bg-sky-400 text-white shadow-sky-500/40 border border-sky-400"
                 : "bg-white/5 hover:bg-white/15 text-zinc-300 border border-white/10 hover:shadow-white/10"
@@ -146,7 +163,7 @@ export function MeetingControlBar({
             onClick={handleToggleRecord}
             disabled={isTogglingRecord}
             title={isRecording ? "Stop Recording" : "Record Meeting"}
-            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg disabled:opacity-50 ${
+            className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] disabled:opacity-50 ${
               isRecording
                 ? "bg-red-600 hover:bg-red-500 border border-red-400 text-white shadow-red-600/40 font-bold"
                 : "bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white hover:shadow-white/10"
@@ -159,11 +176,26 @@ export function MeetingControlBar({
           </button>
         )}
 
+        {/* ── Mute All (Host only) ── */}
+        {canMuteUsers && (
+          <button
+            onClick={handleMuteAll}
+            disabled={isMutingAll}
+            title="Mute all participants"
+            className="hidden sm:flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/30 text-zinc-300 hover:text-amber-400 disabled:opacity-50"
+          >
+            <MicOff size={20} strokeWidth={2.5} />
+            <span className="text-[10px] font-bold tracking-wide">
+              {isMutingAll ? 'Muting…' : 'Mute All'}
+            </span>
+          </button>
+        )}
+
         {/* ── Raise Hand ── */}
         <button
           onClick={onToggleRaiseHand}
           title={isHandRaised ? "Lower Hand" : "Raise Hand"}
-          className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg ${
+          className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] ${
             isHandRaised
               ? "bg-amber-500 hover:bg-amber-400 border border-amber-400 text-black shadow-amber-500/40 font-bold"
               : "bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white hover:shadow-white/10"
@@ -194,10 +226,10 @@ export function MeetingControlBar({
         <button
           onClick={onLeaveClick}
           title="Leave Meeting"
-          className="flex flex-col items-center gap-1 bg-gradient-to-b from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white px-3.5 py-2 rounded-xl font-bold shadow-lg shadow-red-600/30 hover:scale-105 transition-all cursor-pointer shrink-0 min-w-[56px]"
+          className="flex flex-col items-center gap-1 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white px-3 py-2 sm:px-3.5 rounded-xl font-bold shadow-md transition-all cursor-pointer shrink-0 min-w-[44px] sm:min-w-[56px]"
         >
           <PhoneOff size={18} />
-          <span className="text-[9px] font-semibold leading-none">Leave</span>
+          <span className="text-[9px] font-semibold leading-none hidden sm:block">Leave</span>
         </button>
       </div>
     </div>
