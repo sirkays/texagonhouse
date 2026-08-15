@@ -221,7 +221,6 @@ button:focus-visible {
   display: flex !important;
   flex-direction: column !important;
 }
-}
 
 .str-video__participant-details {
   color: white;
