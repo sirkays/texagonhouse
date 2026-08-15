@@ -72,7 +72,7 @@ function DiagnosticsPanel() {
 
   const buildSnapshot = useCallback((): DiagSnapshot => {
     const remoteAudioPublishers = participants.filter(
-      (p) => !p.isLocalParticipant && (p.publishedTracks?.includes('audio') || !!p.audioStream)
+      (p) => !p.isLocalParticipant && !!p.audioStream
     );
 
     return {
@@ -155,7 +155,7 @@ function DiagnosticsPanel() {
           <div><span style={{ color: '#888' }}>Participants: </span>{participants.length}</div>
           <div>
             <span style={{ color: '#888' }}>Remote audio publishers: </span>
-            {participants.filter((p) => !p.isLocalParticipant && (p.publishedTracks?.includes('audio') || !!p.audioStream)).length}
+            {participants.filter((p) => !p.isLocalParticipant && !!p.audioStream).length}
           </div>
           <div>
             <span style={{ color: '#888' }}>Capabilities: </span>
