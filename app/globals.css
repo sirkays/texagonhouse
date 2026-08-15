@@ -221,6 +221,7 @@ button:focus-visible {
   display: flex !important;
   flex-direction: column !important;
 }
+}
 
 .str-video__participant-details {
   color: white;
@@ -228,6 +229,47 @@ button:focus-visible {
 
 .str-video__menu-container {
   color: white;
+}
+
+/* ── Screen Share: Fix participant context menu on mobile ── */
+.str-video__speaker-layout__participants-bar {
+  overflow: visible !important;
+  z-index: 10 !important;
+}
+
+.str-video__speaker-layout__participants-bar .str-video__participant-view__menu {
+  z-index: 50 !important;
+}
+
+/* Make the SDK context menu scrollable and properly positioned on mobile */
+.str-video__menu-container {
+  max-height: 70vh !important;
+  overflow-y: auto !important;
+  z-index: 100 !important;
+}
+
+/* On small screens, make the menu a bottom sheet instead of a popover */
+@media (max-width: 640px) {
+  .str-video__menu-container {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: auto !important;
+    max-height: 60vh !important;
+    border-radius: 16px 16px 0 0 !important;
+    background: rgba(26, 27, 30, 0.98) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 12px !important;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6) !important;
+  }
+
+  .str-video__menu-container button,
+  .str-video__menu-container a {
+    padding: 12px 16px !important;
+    font-size: 14px !important;
+    min-height: 44px !important; /* Touch target */
+  }
 }
 
 .str-video__notification {
@@ -427,201 +469,6 @@ button:focus-visible {
   top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) scale(0) !important;
-  transition: transform 0.15s ease !important;
-}
-
-.str-video__device-settings__device-kind .str-video__option input[type=radio]:checked::before,
-.str-video__device-settings__device-kind .str-video__device-settings__option input[type=radio]:checked::before {
-  transform: translate(-50%, -50%) scale(1) !important;
-}
-
-.str-video__device-settings__device-kind .str-video__option input[type=radio]:checked,
-.str-video__device-settings__device-kind .str-video__device-settings__option input[type=radio]:checked {
-  border-color: #EF7B55 !important;
-}
-
-/* Divider between Camera / Mic sections */
-.str-video__device-settings__separator {
-  border: none !important;
-  border-top: 1px solid rgba(255,255,255,0.07) !important;
-  margin: 14px 0 !important;
-}
-
-/* ─── Call controls (Mute/Camera buttons inside DeviceSettings) ─── */
-.str-video__call-controls {
-  background: transparent !important;
-  border-top: 1px solid rgba(255,255,255,0.07) !important;
-  padding-top: 14px !important;
-  margin-top: 4px !important;
-  display: flex !important;
-  gap: 8px !important;
-  flex-wrap: wrap !important;
-  justify-content: flex-start !important;
-}
-
-.str-video__call-controls button,
-.str-video__call-controls__button {
-  border-radius: 50px !important;
-  font-size: 0.78rem !important;
-  font-weight: 600 !important;
-  padding: 7px 16px !important;
-  cursor: pointer !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  transition: opacity 0.15s ease, transform 0.1s ease, background 0.15s ease !important;
-  height: auto !important;
-  background: rgba(255,255,255,0.08) !important;
-  color: #e4e4e7 !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-}
-
-.str-video__call-controls button:hover,
-.str-video__call-controls__button:hover {
-  background: rgba(255,255,255,0.14) !important;
-  color: #fff !important;
-  transform: scale(1.02) !important;
-}
-
-.str-video__call-controls__button--active {
-  background: rgba(239, 123, 85, 0.85) !important;
-  border-color: #EF7B55 !important;
-  color: #fff !important;
-}
-
-/*  */
-
-/* animation */
-
-.show-block {
-  width: 100%;
-  max-width: 350px;
-  display: block;
-  animation: show 0.7s forwards linear;
-}
-
-@keyframes show {
-  0% {
-    animation-timing-function: ease-in;
-    width: 0%;
-  }
-
-  100% {
-    animation-timing-function: ease-in;
-    width: 100%;
-  }
-}
-
-/* ========================================
-   LIVESTREAM STYLES
-   ======================================== */
-
-/* Pulsating LIVE badge */
-.live-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: white;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-  animation: live-pulse 2s ease-in-out infinite;
-}
-
-.live-badge::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: white;
-  animation: live-dot-blink 1s ease-in-out infinite;
-}
-
-@keyframes live-pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), 0 0 60px rgba(239, 68, 68, 0.3);
-  }
-}
-
-@keyframes live-dot-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-/* Viewer count pill */
-.viewer-count {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 9999px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Backstage waiting animation */
-@keyframes waiting-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.6; }
-  50% { transform: scale(1.1); opacity: 1; }
-}
-
-.waiting-pulse {
-  animation: waiting-pulse 2s ease-in-out infinite;
-}
-
-/* Livestream chat sidebar */
-.livestream-chat-sidebar {
-  width: 350px;
-  max-width: 100%;
-  display: flex;
-  flex-direction: column;
-  background: rgba(9, 9, 11, 0.95);
-  backdrop-filter: blur(24px);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-@media (max-width: 768px) {
-  .livestream-chat-sidebar {
-    width: 100%;
-    max-height: 50vh;
-    border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-  }
-}
-
-/* Stream SDK LivestreamPlayer overrides */
-.str-video__livestream-layout {
-  background: #09090b !important;
-}
-
-.str-video__livestream-layout__stage {
-  background: #09090b !important;
-}
-
-.str-video__speaker-layout__wrapper {
-  background: #09090b !important;
-}
-
-/* Go Live button pulse */
-@keyframes go-live-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-  50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
-}
-
-.go-live-pulse {
-transform: translate(-50%, -50%) scale(0) !important;
   transition: transform 0.15s ease !important;
 }
 
@@ -1242,7 +1089,7 @@ transform: translate(-50%, -50%) scale(0) !important;
     gap: 4px !important;
   }
 
-  .str-video__speaker-layout .str-video__speaker-layout__participants-bar .str-video__speaker-layout__participant-tile {
+  .str-video__speaker-layout .str-video__speaker-layout__participant-tile {
     width: 100px !important;
     min-width: 85px !important;
     max-width: 110px !important;
