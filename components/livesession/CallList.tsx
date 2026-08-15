@@ -31,6 +31,7 @@ const CallList = ({
   const { data: session } = useSession();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecordingsEnabled, setIsRecordingsEnabled] = useState(false);
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
   const [joining, setJoining] = useState<Record<string, boolean>>({});
   const [activeVideo, setActiveVideo] = useState<{ url: string; title: string } | null>(null);
@@ -55,6 +56,7 @@ const CallList = ({
 
       try {
         let dbMeetings: Meeting[] = [];
+        let enableRecordings = false;
         try {
           const meetingResponse = await fetch("/api/teacher/live-session/", {
             method: "GET",
@@ -67,13 +69,16 @@ const CallList = ({
 
           if (meetingResponse.ok) {
             const data = await meetingResponse.json();
+            enableRecordings = Boolean(data.enable_recordings);
+            setIsRecordingsEnabled(enableRecordings);
+
             dbMeetings = (data.live_sessions || []).map((meeting: any) => ({
               id: String(meeting.id),
               scheduled_at: meeting.scheduled_at,
               title: meeting.title,
               description: meeting.description || meeting.title,
               join_url: meeting.join_url,
-              recording_url: meeting.recording_url,
+              recording_url: enableRecordings ? meeting.recording_url : undefined,
             }));
           }
         } catch {
@@ -81,7 +86,8 @@ const CallList = ({
         }
 
         let streamRecordings: Meeting[] = [];
-        if (type === "recordings" || type === "all") {
+        // Only fetch Stream recordings if recordings are enabled in Django admin
+        if (enableRecordings && (type === "recordings" || type === "all")) {
           try {
             const streamRes = await getStreamRecordingsAction();
             if (streamRes.success && streamRes.recordings?.length) {
@@ -269,8 +275,13 @@ const CallList = ({
       title = "No Previous Calls";
       description = "No past meetings found.";
     } else if (type === "recordings") {
-      title = "No Recordings Available";
-      description = "Recordings from ended meetings will appear here. Start a call and click 'Record' to generate meeting recordings.";
+      if (!isRecordingsEnabled) {
+        title = "Recordings are Disabled";
+        description = "Meeting recordings are currently disabled. Please enable them in the admin dashboard to view recorded sessions.";
+      } else {
+        title = "No Recordings Available";
+        description = "Recordings from ended meetings will appear here. Start a call and click 'Record' to generate meeting recordings.";
+      }
     }
 
     return (
