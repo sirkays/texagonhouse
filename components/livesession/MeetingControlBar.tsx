@@ -176,21 +176,6 @@ export function MeetingControlBar({
           </button>
         )}
 
-        {/* ── Host Moderation Controls ── */}
-        {canMuteUsers && (
-          <button
-            onClick={handleMuteAll}
-            disabled={isMutingAll}
-            title="Mute all participants"
-            className="flex flex-col items-center gap-1 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[44px] sm:min-w-[64px] bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/30 text-zinc-300 hover:text-amber-400 disabled:opacity-50"
-          >
-            <MicOff size={18} strokeWidth={2.5} />
-            <span className="text-[9px] sm:text-[10px] font-bold tracking-wide">
-              {isMutingAll ? '…' : 'Mute All'}
-            </span>
-          </button>
-        )}
-
         {/* ── Raise Hand ── */}
         <button
           onClick={onToggleRaiseHand}

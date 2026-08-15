@@ -44,83 +44,62 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
   }
 
   const participantName = participant.name || participant.userId || "Participant";
+  const hasAudio = !!participant.audioStream;
+  const hasVideo = !!participant.videoStream;
 
-  // Mute microphone
-  const handleMute = async () => {
+  // Toggle mic: disable if on, enable if off
+  const handleToggleMic = async () => {
     if (!call) return;
     setIsLoading(true);
     try {
-      await call.muteUser(participant.userId, "audio");
-      toast.success(`Muted ${participantName}`);
+      if (hasAudio) {
+        // Disable: mute + revoke permission
+        await call.muteUser(participant.userId, 'audio');
+        await (call as any).updateUserPermissions({
+          user_id: participant.userId,
+          revoke_permissions: ['send-audio'],
+        });
+        toast.success(`Disabled mic for ${participantName}`);
+      } else {
+        // Enable: grant permission back
+        await (call as any).updateUserPermissions({
+          user_id: participant.userId,
+          grant_permissions: ['send-audio'],
+        });
+        toast.success(`Enabled mic for ${participantName}`);
+      }
     } catch (err: any) {
-      console.error("[Moderation] Mute error:", err);
-      toast.error(err?.message || "Unable to mute participant.");
+      console.error('[Moderation] Mic toggle error:', err);
+      toast.error(err?.message || 'Unable to toggle mic.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Mute video
-  const handleMuteVideo = async () => {
+  // Toggle camera: disable if on, enable if off
+  const handleToggleCamera = async () => {
     if (!call) return;
     setIsLoading(true);
     try {
-      await call.muteUser(participant.userId, 'video');
-      toast.success(`Stopped ${participantName}'s camera`);
+      if (hasVideo) {
+        // Disable: mute + revoke permission
+        await call.muteUser(participant.userId, 'video');
+        await (call as any).updateUserPermissions({
+          user_id: participant.userId,
+          revoke_permissions: ['send-video'],
+        });
+        toast.success(`Disabled camera for ${participantName}`);
+      } else {
+        // Enable: grant permission back
+        await (call as any).updateUserPermissions({
+          user_id: participant.userId,
+          grant_permissions: ['send-video'],
+        });
+        toast.success(`Enabled camera for ${participantName}`);
+      }
     } catch (err: any) {
-      toast.error(err?.message || 'Unable to stop camera.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Grant mic permission (allows participant to unmute)
-  const handleGrantMic = async () => {
-    if (!call) return;
-    setIsLoading(true);
-    try {
-      await (call as any).updateUserPermissions({
-        user_id: participant.userId,
-        granted_permissions: ['send-audio'],
-      });
-      toast.success(`Enabled mic for ${participantName}`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Unable to grant mic permission.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Grant camera permission
-  const handleGrantCamera = async () => {
-    if (!call) return;
-    setIsLoading(true);
-    try {
-      await (call as any).updateUserPermissions({
-        user_id: participant.userId,
-        granted_permissions: ['send-video'],
-      });
-      toast.success(`Enabled camera for ${participantName}`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Unable to grant camera permission.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Revoke mic (prevents participant from re-unmuting)
-  const handleRevokeMic = async () => {
-    if (!call) return;
-    setIsLoading(true);
-    try {
-      await call.muteUser(participant.userId, 'audio');
-      await (call as any).updateUserPermissions({
-        user_id: participant.userId,
-        revoked_permissions: ['send-audio'],
-      });
-      toast.success(`Locked mic for ${participantName}`);
-    } catch (err: any) {
-      toast.error(err?.message || 'Unable to lock mic.');
+      console.error('[Moderation] Camera toggle error:', err);
+      toast.error(err?.message || 'Unable to toggle camera.');
     } finally {
       setIsLoading(false);
     }
@@ -171,56 +150,27 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
         <DropdownMenuContent className="border border-white/15 bg-zinc-900/98 backdrop-blur-xl text-white rounded-xl p-1.5 shadow-2xl min-w-[160px] z-50">
           {canMuteUsers && (
             <DropdownMenuItem
-              onClick={handleMute}
+              onClick={handleToggleMic}
               disabled={isLoading}
-              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-zinc-200"
+              className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer ${
+                hasAudio ? 'text-amber-400' : 'text-emerald-300'
+              }`}
             >
-              <MicOff className="w-3.5 h-3.5 text-amber-400" />
-              <span>Mute Audio</span>
+              {hasAudio ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              <span>{hasAudio ? 'Disable Mic' : 'Enable Mic'}</span>
             </DropdownMenuItem>
           )}
 
           {canMuteUsers && (
             <DropdownMenuItem
-              onClick={handleMuteVideo}
+              onClick={handleToggleCamera}
               disabled={isLoading}
-              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-zinc-200"
+              className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer ${
+                hasVideo ? 'text-amber-400' : 'text-emerald-300'
+              }`}
             >
-              <VideoOff className="w-3.5 h-3.5 text-amber-400" />
-              <span>Stop Camera</span>
-            </DropdownMenuItem>
-          )}
-
-          {canGrantAudio && (
-            <DropdownMenuItem
-              onClick={handleGrantMic}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-emerald-300"
-            >
-              <Mic className="w-3.5 h-3.5" />
-              <span>Enable Mic</span>
-            </DropdownMenuItem>
-          )}
-
-          {canGrantVideo && (
-            <DropdownMenuItem
-              onClick={handleGrantCamera}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-emerald-300"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span>Enable Camera</span>
-            </DropdownMenuItem>
-          )}
-
-          {canRevokeAudio && (
-            <DropdownMenuItem
-              onClick={handleRevokeMic}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-rose-400"
-            >
-              <MicOff className="w-3.5 h-3.5" />
-              <span>Lock Mic (Prevent Unmuting)</span>
+              {hasVideo ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
+              <span>{hasVideo ? 'Disable Camera' : 'Enable Camera'}</span>
             </DropdownMenuItem>
           )}
 
