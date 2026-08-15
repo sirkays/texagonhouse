@@ -35,6 +35,7 @@ import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 import { MeetingControlBar } from "./MeetingControlBar";
 import { EndMeetingDialog } from "./EndMeetingDialog";
 import { ParticipantActionsMenu, BlockedParticipantsSection } from "./ParticipantActionsMenu";
+import { MeetingDiagnostics } from './MeetingDiagnostics';
 
 // ── Types ──
 
@@ -808,11 +809,11 @@ const MeetingRoom = () => {
       <div ref={gridContainerRef} className="w-full h-full overflow-hidden custom-paginated-grid relative">
         {/* ParticipantsAudio renders audio for ALL remote participants, regardless of which page is visible.
             muteAudio on ParticipantView tiles prevents duplicate audio playback. */}
-        <ParticipantsAudio />
+        <ParticipantsAudio participants={allParticipantsRaw} />
         <PaginatedGridLayout groupSize={groupSize} />
       </div>
     );
-  }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen]);
+  }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen, allParticipantsRaw]);
 
   // Active speaker for off-page indicator
   const { useDominantSpeaker: _useDominantSpeaker } = useCallStateHooks();
@@ -1081,6 +1082,8 @@ const MeetingRoom = () => {
           }
         }
       `}} />
+
+      <MeetingDiagnostics />
     </section>
   );
 };
