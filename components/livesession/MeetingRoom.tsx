@@ -814,9 +814,10 @@ const MeetingRoom = () => {
       return (
         <div
           ref={screenShareContainerRef}
-          className="w-full h-full relative group/screenshare"
+          className="w-full h-full relative group/screenshare screenshare-dominant"
         >
-          <SpeakerLayout participantsBarPosition="bottom" />
+          {/* Screen share dominant: content fills the area, participants as small right strip */}
+          <SpeakerLayout participantsBarPosition="right" />
 
           <button
             onClick={toggleFullscreen}

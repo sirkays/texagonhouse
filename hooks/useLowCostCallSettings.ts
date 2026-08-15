@@ -97,26 +97,11 @@ export function useLowCostCallSettings(call: Call | undefined) {
       call.updatePublishOptions({
         preferredCodec: 'vp8',
         preferredBitrate: 600_000,
-        screenShareSettings: {
-          maxFramerate: 10,
-          maxBitrate: 800_000,
-          contentHint: 'detail',
-        },
+        // Screen share settings are NOT overridden here — they use Stream dashboard config (720p)
       });
 
-      call.screenShare.setSettings({
-        maxFramerate: 10,
-        maxBitrate: 800_000,
-        contentHint: 'detail',
-      });
-
-      call.screenShare.setDefaultConstraints({
-        video: {
-          width: { max: 1280 },
-          height: { max: 720 },
-          frameRate: { ideal: 10, max: 15 },
-        },
-      });
+      // Screen share quality is controlled by Stream dashboard (720p).
+      // Do NOT override screenShare.setSettings or setDefaultConstraints here.
 
       try {
         (call as any).setPreferredIncomingVideoResolution?.({ width: 640, height: 480 });
@@ -161,11 +146,7 @@ export function useLowCostCallSettings(call: Call | undefined) {
         call.updatePublishOptions({
           preferredCodec: 'vp8',
           preferredBitrate: tier.bitrate,
-          screenShareSettings: {
-            maxFramerate: count > 25 ? 5 : 10,
-            maxBitrate: count > 25 ? 500_000 : 800_000,
-            contentHint: 'detail',
-          },
+          // Screen share is NOT capped — uses Stream dashboard settings
         });
 
         // Adjust incoming video resolution
