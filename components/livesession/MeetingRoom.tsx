@@ -705,11 +705,33 @@ const MeetingRoom = () => {
       handRevisionMap.current.delete(leftUserId);
     };
     // @ts-ignore
-    call.on('call.participant_left', handleParticipantLeft);
+    call.on('call.session_participant_left', handleParticipantLeft);
     return () => {
       // @ts-ignore
-      call.off('call.participant_left', handleParticipantLeft);
+      call.off('call.session_participant_left', handleParticipantLeft);
     };
+  }, [call]);
+
+  // Periodic cleanup: remove raised hands for users no longer in the call
+  useEffect(() => {
+    if (!call) return;
+    const cleanupInterval = setInterval(() => {
+      const currentParticipantIds = new Set(
+        (call.state?.participants || []).map((p: any) => p.userId)
+      );
+      setRaisedHandsMap((prev) => {
+        let changed = false;
+        const updated = new Map(prev);
+        for (const [userId] of updated) {
+          if (!currentParticipantIds.has(userId)) {
+            updated.delete(userId);
+            changed = true;
+          }
+        }
+        return changed ? updated : prev;
+      });
+    }, 10_000); // Every 10 seconds
+    return () => clearInterval(cleanupInterval);
   }, [call]);
 
   // ── Restore chat messages from sessionStorage ──
@@ -938,7 +960,7 @@ const MeetingRoom = () => {
       )}
 
       {/* Raised Hands Floating Badges — visible on the main stage */}
-      {raisedHandsMap.size > 0 && (
+      {Array.from(raisedHandsMap.values()).some(s => s.raised) && (
         <div className="fixed top-[100px] right-3 z-30 flex flex-col gap-1.5 pointer-events-none">
           {Array.from(raisedHandsMap.entries())
             .filter(([, state]) => state.raised)
@@ -952,9 +974,9 @@ const MeetingRoom = () => {
                 <span className="max-w-[120px] truncate">{state.userName}</span>
               </div>
             ))}
-          {raisedHandsMap.size > 5 && (
+          {Array.from(raisedHandsMap.values()).filter(s => s.raised).length > 5 && (
             <div className="text-[10px] text-amber-400 font-semibold text-center">
-              +{raisedHandsMap.size - 5} more
+              +{Array.from(raisedHandsMap.values()).filter(s => s.raised).length - 5} more
             </div>
           )}
         </div>
@@ -971,7 +993,7 @@ const MeetingRoom = () => {
 
       {/* Slide-over Participants Drawer */}
       <div
-        className={`fixed top-[57px] right-0 bottom-0 w-[min(320px,90vw)] sm:w-80 bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-50 shadow-2xl flex flex-col ${
+        className={`fixed top-[57px] right-0 bottom-0 w-[min(320px,90vw)] sm:w-80 bg-[#1a1b1e] border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-50 shadow-2xl flex flex-col ${
           showParticipants ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -1000,11 +1022,11 @@ const MeetingRoom = () => {
 
       {/* Chat Drawer */}
       <div
-        className={`fixed top-[57px] right-0 bottom-0 w-[min(360px,90vw)] sm:w-[380px] bg-[#1a1b1e]/98 border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-50 shadow-2xl flex flex-col ${
+        className={`fixed top-[57px] right-0 bottom-0 w-[min(360px,90vw)] sm:w-[380px] bg-[#1a1b1e] border-l border-white/8 backdrop-blur-2xl transition-transform duration-300 ease-in-out z-50 shadow-2xl flex flex-col ${
           showChat ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex-none p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="flex-none p-4 border-b border-white/10 flex items-center justify-between bg-[#202124]">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-[#EF7B55]" />
             <h2 className="font-bold text-white text-sm">Meeting Chat</h2>

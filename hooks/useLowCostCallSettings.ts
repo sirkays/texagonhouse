@@ -80,8 +80,8 @@ function getTierForCount(count: number): QualityTier {
 export function useLowCostCallSettings(call: Call | undefined) {
   const appliedRef = useRef(false);
   const callIdRef = useRef<string | undefined>(undefined);
-  const videoDisabledByNetworkRef = useRef(false);
-  const videoDisabledByCountRef = useRef(false);
+  const isPoorNetworkRef = useRef(false);
+  const isInAudioPriorityRef = useRef(false);
   const lastQualityToastRef = useRef(0);
   const currentTierLabelRef = useRef('');
   const lastParticipantCountRef = useRef(0);
@@ -176,20 +176,16 @@ export function useLowCostCallSettings(call: Call | undefined) {
           });
         } catch {}
 
-        // Auto-disable outgoing video at 51+ participants
-        if (tier.disableOutgoingVideo && !videoDisabledByCountRef.current) {
-          videoDisabledByCountRef.current = true;
-          call.camera.disable().catch(() => {});
+        // Notify at 51+ participants
+        if (tier.disableOutgoingVideo && !isInAudioPriorityRef.current) {
+          isInAudioPriorityRef.current = true;
           const now = Date.now();
           if (now - lastQualityToastRef.current > 30000) {
-            toast.info(`${count} participants \u2014 video disabled to ensure stable audio`, { duration: 5000 });
+            toast.info(`${count} participants \u2014 video quality reduced to ensure stable audio`, { duration: 5000 });
             lastQualityToastRef.current = now;
           }
-        } else if (!tier.disableOutgoingVideo && videoDisabledByCountRef.current) {
-          videoDisabledByCountRef.current = false;
-          if (!videoDisabledByNetworkRef.current) {
-            call.camera.enable().catch(() => {});
-          }
+        } else if (!tier.disableOutgoingVideo && isInAudioPriorityRef.current) {
+          isInAudioPriorityRef.current = false;
         }
 
         if (process.env.NODE_ENV === 'development') {
@@ -218,25 +214,20 @@ export function useLowCostCallSettings(call: Call | undefined) {
         const isPoor = stats === 'poor' || stats === 1 || stats === 'POOR';
         const isGood = stats === 'good' || stats === 'excellent' || stats >= 3 || stats === 'GOOD' || stats === 'EXCELLENT';
 
-        if (isPoor && !videoDisabledByNetworkRef.current) {
-          videoDisabledByNetworkRef.current = true;
-          call.camera.disable().catch(() => {});
-
+        if (isPoor && !isPoorNetworkRef.current) {
+          isPoorNetworkRef.current = true;
+          
           try {
             (call as any).setPreferredIncomingVideoResolution?.({ width: 160, height: 120 });
           } catch {}
 
           const now = Date.now();
           if (now - lastQualityToastRef.current > 15000) {
-            toast.info('Poor network \u2014 video paused to prioritize audio', { duration: 5000 });
+            toast.info('Poor network \u2014 video quality reduced to prioritize audio', { duration: 5000 });
             lastQualityToastRef.current = now;
           }
-        } else if (isGood && videoDisabledByNetworkRef.current) {
-          videoDisabledByNetworkRef.current = false;
-
-          if (!videoDisabledByCountRef.current) {
-            call.camera.enable().catch(() => {});
-          }
+        } else if (isGood && isPoorNetworkRef.current) {
+          isPoorNetworkRef.current = false;
 
           const tier = getTierForCount(lastParticipantCountRef.current || 1);
           try {
