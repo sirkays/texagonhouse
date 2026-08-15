@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import { toast } from "sonner";
 import {
@@ -44,76 +45,66 @@ export function MoreMeetingMenu({
   onOpenEndMeetingDialog,
   allowedEmojis,
 }: MoreMeetingMenuProps) {
+  const [isAudioLocked, setIsAudioLocked] = useState(false);
+  const [isVideoLocked, setIsVideoLocked] = useState(false);
   const call = useCall();
   const { useIsCallRecordingInProgress } = useCallStateHooks();
   const isRecording = useIsCallRecordingInProgress();
   const { isHost, canMuteUsers, canEndCall, canRecord } = useMeetingPermissions();
 
-  const handleMuteAll = async () => {
+  const handleToggleAllAudio = async () => {
     if (!call) return;
     try {
-      await call.muteAllUsers("audio");
-      toast.success("Muted all participants");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to mute all participants.");
-    }
-  };
-
-  const handleStopAllVideo = async () => {
-    if (!call) return;
-    try {
-      await call.muteAllUsers("video");
-      toast.success("Stopped video for all participants");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to stop video for all participants.");
-    }
-  };
-
-  const handleEnableAllAudio = async () => {
-    if (!call) return;
-    try {
-      const participants = call.state.participants;
-      const remote = participants.filter((p: any) => !p.isLocalParticipant);
-      let granted = 0;
-      for (const p of remote) {
-        try {
-          await (call as any).updateUserPermissions({
-            user_id: p.userId,
-            grant_permissions: ['send-audio'],
-          });
-          granted++;
-        } catch {
-          // individual grant may fail
+      if (!isAudioLocked) {
+        await call.muteAllUsers('audio');
+        setIsAudioLocked(true);
+        toast.success('Disabled audio for all participants');
+      } else {
+        const participants = call.state.participants;
+        const remote = participants.filter((p: any) => !p.isLocalParticipant);
+        for (const p of remote) {
+          try {
+            await (call as any).updateUserPermissions({
+              user_id: p.userId,
+              grant_permissions: ['send-audio'],
+            });
+          } catch {}
         }
+        setIsAudioLocked(false);
+        toast.success('Enabled audio for all participants');
       }
-      toast.success(`Enabled audio for ${granted} participant(s)`);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to enable audio for participants.');
+      toast.error(err?.message || 'Failed to toggle audio for participants.');
     }
   };
 
-  const handleEnableAllVideo = async () => {
+  const handleToggleAllVideo = async () => {
     if (!call) return;
     try {
-      const participants = call.state.participants;
-      const remote = participants.filter((p: any) => !p.isLocalParticipant);
-      let granted = 0;
-      for (const p of remote) {
-        try {
-          await (call as any).updateUserPermissions({
-            user_id: p.userId,
-            grant_permissions: ['send-video'],
-          });
-          granted++;
-        } catch {
-          // individual grant may fail
+      if (!isVideoLocked) {
+        await call.muteAllUsers('video');
+        setIsVideoLocked(true);
+        toast.success('Disabled video for all participants');
+      } else {
+        const participants = call.state.participants;
+        const remote = participants.filter((p: any) => !p.isLocalParticipant);
+        for (const p of remote) {
+          try {
+            await (call as any).updateUserPermissions({
+              user_id: p.userId,
+              grant_permissions: ['send-video'],
+            });
+          } catch {}
         }
+        setIsVideoLocked(false);
+        toast.success('Enabled video for all participants');
       }
-      toast.success(`Enabled video for ${granted} participant(s)`);
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to enable video for participants.');
+      toast.error(err?.message || 'Failed to toggle video for participants.');
     }
   };
+
+  // handleEnableAllAudio and handleEnableAllVideo are now merged into the toggle handlers above
 
   const handleToggleRecording = async () => {
     if (!call) return;
@@ -212,35 +203,23 @@ export function MoreMeetingMenu({
             {canMuteUsers && (
               <>
                 <DropdownMenuItem
-                  onClick={handleMuteAll}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-amber-400"
+                  onClick={handleToggleAllAudio}
+                  className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer ${
+                    isAudioLocked ? 'text-emerald-400' : 'text-amber-400'
+                  }`}
                 >
-                  <MicOff className="w-4 h-4" />
-                  <span>Mute All Guests</span>
+                  {isAudioLocked ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                  <span>{isAudioLocked ? 'Enable All Audio' : 'Disable All Audio'}</span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  onClick={handleStopAllVideo}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-red-400"
+                  onClick={handleToggleAllVideo}
+                  className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer ${
+                    isVideoLocked ? 'text-emerald-400' : 'text-red-400'
+                  }`}
                 >
-                  <VideoOff className="w-4 h-4" />
-                  <span>Stop All Videos</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={handleEnableAllAudio}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-emerald-400"
-                >
-                  <Mic className="w-4 h-4" />
-                  <span>Enable All Audio</span>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem
-                  onClick={handleEnableAllVideo}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-emerald-400"
-                >
-                  <Video className="w-4 h-4" />
-                  <span>Enable All Video</span>
+                  {isVideoLocked ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+                  <span>{isVideoLocked ? 'Enable All Video' : 'Disable All Video'}</span>
                 </DropdownMenuItem>
               </>
             )}
