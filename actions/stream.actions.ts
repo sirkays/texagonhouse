@@ -78,7 +78,7 @@ export const createStreamCallServer = async (
     await call.getOrCreate({
       data: {
         created_by_id: userId,
-        starts_at: startsAt,
+        starts_at: new Date(startsAt),
         custom: { description, is_public: isPublic },
         settings_override: {
           backstage: { enabled: false },
