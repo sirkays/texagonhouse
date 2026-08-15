@@ -52,14 +52,49 @@ export function MoreMeetingMenu({
   const isRecording = useIsCallRecordingInProgress();
   const { isHost, canMuteUsers, canEndCall, canRecord } = useMeetingPermissions();
 
-  const handleToggleAllAudio = async () => {
+  // Mute All Audio — temporary, participants can unmute themselves
+  const handleMuteAllAudio = async () => {
+    if (!call) return;
+    try {
+      await call.muteAllUsers('audio');
+      toast.success('Muted all participants (they can unmute)');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to mute all participants.');
+    }
+  };
+
+  // Mute All Video — temporary, participants can re-enable
+  const handleMuteAllVideo = async () => {
+    if (!call) return;
+    try {
+      await call.muteAllUsers('video');
+      toast.success('Stopped all video (participants can re-enable)');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to stop all video.');
+    }
+  };
+
+  // Disable/Enable All Audio — permission lock toggle
+  const handleToggleAudioLock = async () => {
     if (!call) return;
     try {
       if (!isAudioLocked) {
+        // Disable: mute + revoke permission (participants CANNOT unmute)
         await call.muteAllUsers('audio');
+        const participants = call.state.participants;
+        const remote = participants.filter((p: any) => !p.isLocalParticipant);
+        for (const p of remote) {
+          try {
+            await (call as any).updateUserPermissions({
+              user_id: p.userId,
+              revoke_permissions: ['send-audio'],
+            });
+          } catch {}
+        }
         setIsAudioLocked(true);
-        toast.success('Disabled audio for all participants');
+        toast.success('Disabled all audio — participants cannot unmute');
       } else {
+        // Enable: grant permission back (participants CAN unmute)
         const participants = call.state.participants;
         const remote = participants.filter((p: any) => !p.isLocalParticipant);
         for (const p of remote) {
@@ -71,21 +106,34 @@ export function MoreMeetingMenu({
           } catch {}
         }
         setIsAudioLocked(false);
-        toast.success('Enabled audio for all participants');
+        toast.success('Enabled all audio — participants can now unmute');
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to toggle audio for participants.');
+      toast.error(err?.message || 'Failed to toggle audio lock.');
     }
   };
 
-  const handleToggleAllVideo = async () => {
+  // Disable/Enable All Video — permission lock toggle
+  const handleToggleVideoLock = async () => {
     if (!call) return;
     try {
       if (!isVideoLocked) {
+        // Disable: mute + revoke permission (participants CANNOT re-enable)
         await call.muteAllUsers('video');
+        const participants = call.state.participants;
+        const remote = participants.filter((p: any) => !p.isLocalParticipant);
+        for (const p of remote) {
+          try {
+            await (call as any).updateUserPermissions({
+              user_id: p.userId,
+              revoke_permissions: ['send-video'],
+            });
+          } catch {}
+        }
         setIsVideoLocked(true);
-        toast.success('Disabled video for all participants');
+        toast.success('Disabled all video — participants cannot re-enable');
       } else {
+        // Enable: grant permission back (participants CAN enable camera)
         const participants = call.state.participants;
         const remote = participants.filter((p: any) => !p.isLocalParticipant);
         for (const p of remote) {
@@ -97,14 +145,12 @@ export function MoreMeetingMenu({
           } catch {}
         }
         setIsVideoLocked(false);
-        toast.success('Enabled video for all participants');
+        toast.success('Enabled all video — participants can now enable camera');
       }
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to toggle video for participants.');
+      toast.error(err?.message || 'Failed to toggle video lock.');
     }
   };
-
-  // handleEnableAllAudio and handleEnableAllVideo are now merged into the toggle handlers above
 
   const handleToggleRecording = async () => {
     if (!call) return;
@@ -203,9 +249,27 @@ export function MoreMeetingMenu({
             {canMuteUsers && (
               <>
                 <DropdownMenuItem
-                  onClick={handleToggleAllAudio}
+                  onClick={handleMuteAllAudio}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-amber-400"
+                >
+                  <MicOff className="w-4 h-4" />
+                  <span>Mute All Audio</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleMuteAllVideo}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-amber-400"
+                >
+                  <VideoOff className="w-4 h-4" />
+                  <span>Mute All Video</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator className="bg-white/10 my-0.5" />
+
+                <DropdownMenuItem
+                  onClick={handleToggleAudioLock}
                   className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer ${
-                    isAudioLocked ? 'text-emerald-400' : 'text-amber-400'
+                    isAudioLocked ? 'text-emerald-400' : 'text-red-400'
                   }`}
                 >
                   {isAudioLocked ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
@@ -213,7 +277,7 @@ export function MoreMeetingMenu({
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                  onClick={handleToggleAllVideo}
+                  onClick={handleToggleVideoLock}
                   className={`flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer ${
                     isVideoLocked ? 'text-emerald-400' : 'text-red-400'
                   }`}
