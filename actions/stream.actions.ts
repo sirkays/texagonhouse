@@ -3,6 +3,7 @@
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/app/api/auth/[...nextauth]/route";
 import {StreamClient} from "@stream-io/node-sdk";
+import {djangoFetch} from "@/app/api/_lib/proxy";
 
 const streamApiKey = process.env.STREAM_API_KEY!;
 const streamSecretKey = process.env.STREAM_SECRET_KEY!;
@@ -113,6 +114,24 @@ export const createStreamCallServer = async (
  * Fetch all video call recordings directly from GetStream Video API.
  */
 export const getStreamRecordingsAction = async () => {
+  // Check backend recording configuration first
+  try {
+    const { response, text } = await djangoFetch("/live/api/config/", {
+      method: "GET",
+    });
+    if (response.ok) {
+      const config = JSON.parse(text || "{}");
+      const isEnabled = Boolean(
+        config.enable_recordings ?? config.enabled ?? config.enable ?? false
+      );
+      if (!isEnabled) {
+        return { success: true, recordings: [], isEnabled: false };
+      }
+    }
+  } catch (err) {
+    console.warn("[StreamServer] Could not verify recording config from backend:", err);
+  }
+
   if (!streamApiKey || !streamSecretKey) {
     return { success: false, recordings: [], error: "Stream keys missing" };
   }

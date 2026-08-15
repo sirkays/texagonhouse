@@ -55,8 +55,22 @@ const CallList = ({
       }
 
       try {
-        let dbMeetings: Meeting[] = [];
         let enableRecordings = false;
+
+        // Fetch global recording configuration
+        try {
+          const configRes = await fetch("/api/meeting/config", { cache: "no-store" });
+          if (configRes.ok) {
+            const configData = await configRes.json();
+            enableRecordings = Boolean(
+              configData.enable_recordings ?? configData.enabled ?? configData.enable ?? false
+            );
+          }
+        } catch {
+          // fallback to live-session response
+        }
+
+        let dbMeetings: Meeting[] = [];
         try {
           const meetingResponse = await fetch("/api/teacher/live-session/", {
             method: "GET",
@@ -65,12 +79,16 @@ const CallList = ({
               Authorization: `Api-Key WefMykHH.C4jZy9FYP3WbZdy7aBgP4L1Bg7vXChB8`,
               "X-Session-Token": sessionToken || "",
             },
+            cache: "no-store",
           });
 
           if (meetingResponse.ok) {
             const data = await meetingResponse.json();
-            enableRecordings = Boolean(data.enable_recordings);
-            setIsRecordingsEnabled(enableRecordings);
+            if (data.enable_recordings !== undefined || data.enabled !== undefined || data.enable !== undefined) {
+              enableRecordings = Boolean(
+                data.enable_recordings ?? data.enabled ?? data.enable ?? false
+              );
+            }
 
             dbMeetings = (data.live_sessions || []).map((meeting: any) => ({
               id: String(meeting.id),
@@ -84,6 +102,8 @@ const CallList = ({
         } catch {
           // ignore DB fetch errors if offline or unsupported endpoint
         }
+
+        setIsRecordingsEnabled(enableRecordings);
 
         let streamRecordings: Meeting[] = [];
         // Only fetch Stream recordings if recordings are enabled in Django admin
@@ -143,7 +163,7 @@ const CallList = ({
           } else if (type === "ended") {
             return meetingDate < currentDate;
           } else {
-            return !!meeting.recording_url;
+            return enableRecordings && !!meeting.recording_url;
           }
         });
 
