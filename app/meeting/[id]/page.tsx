@@ -124,53 +124,62 @@ const PublicMeetingPage = () => {
 
     const fetchCall = async () => {
       setIsCallLoading(true);
-      // Always try "default" first — public meetings are forced to "default".
-      // Fall back to "livestream" for legacy private broadcast sessions.
-      for (const callType of ["default", "livestream"] as const) {
-        try {
-          const c = client.call(callType, id);
-          await c.getOrCreate();
+      
+      // Determine call type from server-validated meeting info
+      const resolvedCallType = (meetingInfo?.call_type === 'livestream' ? 'livestream' : 'default') as 'default' | 'livestream';
 
-          // Check if the call has been ended by the host
-          // Stream's CallState exposes endedAt as a getter
+      let lastErr: unknown;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+        }
+        try {
+          const c = client.call(resolvedCallType, id);
+          // get() — NEVER getOrCreate(). Only the creation flow may create.
+          await c.get();
+
           if (c.state.endedAt) {
             setIsCallEnded(true);
             setIsCallLoading(false);
             return;
           }
 
-          // Only accept if the call has real custom data (not an empty auto-created shell)
-          const custom = c.state.custom || {};
-          if (Object.keys(custom).length > 0 || callType === "default") {
-            callRef.current = c;
+          callRef.current = c;
 
-            // Guard: prevent duplicate call.join()
-            if (!hasJoinedRef.current && !activeJoiningCallIds.has(id)) {
-              try {
-                const savedSetup = sessionStorage.getItem(`techxagon_setup_${id}`);
-                if (savedSetup === "true") {
-                  const callingState = c.state?.callingState;
-                  if (callingState !== CallingState.JOINED && callingState !== CallingState.JOINING) {
-                    hasJoinedRef.current = true;
-                    activeJoiningCallIds.add(id);
-                    await c.join();
-                  }
+          // Guard: prevent duplicate call.join()
+          if (!hasJoinedRef.current && !activeJoiningCallIds.has(id)) {
+            try {
+              const savedSetup = sessionStorage.getItem(`techxagon_setup_${id}`);
+              if (savedSetup === 'true') {
+                const callingState = c.state?.callingState;
+                if (callingState !== CallingState.JOINED && callingState !== CallingState.JOINING) {
+                  hasJoinedRef.current = true;
+                  activeJoiningCallIds.add(id);
+                  await c.join();
                 }
-              } catch (err) {
-                hasJoinedRef.current = false;
-                console.error("Auto-join error:", err);
-              } finally {
-                activeJoiningCallIds.delete(id);
               }
+            } catch (joinErr) {
+              hasJoinedRef.current = false;
+              console.error('Auto-join error:', joinErr);
+            } finally {
+              activeJoiningCallIds.delete(id);
             }
-            setCall(c);
-            setIsCallLoading(false);
-            return;
           }
-        } catch {
-          continue;
+          setCall(c);
+          setIsCallLoading(false);
+          return;
+        } catch (err: unknown) {
+          lastErr = err;
+          // Do not retry on permission/not-found errors
+          const errMsg = String(err);
+          if (errMsg.includes('403') || errMsg.includes('404') || errMsg.includes('not found')) {
+            break;
+          }
+          // Transient error — retry
         }
       }
+
+      console.error('[Meeting] Failed to fetch call after retries:', lastErr);
       setIsCallLoading(false);
     };
 
@@ -339,10 +348,12 @@ const PublicMeetingPage = () => {
 
   if (!call) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f1117]">
-        <p className="text-center text-2xl font-bold text-white">
-          Call Not Found
-        </p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f1117] gap-5 text-white p-6">
+        <div className="bg-[#1a1d26] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+          <h2 className="text-xl font-bold text-white mb-2">Meeting Not Found</h2>
+          <p className="text-zinc-400 text-sm mt-1">This meeting does not exist or the link is invalid. Check with your host.</p>
+          <a href="/" className="mt-5 inline-block w-full px-6 py-3 bg-[#2a2d36] hover:bg-[#3a3d46] text-white font-semibold text-sm rounded-xl transition-all border border-white/10">Back to Home</a>
+        </div>
       </div>
     );
   }

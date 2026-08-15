@@ -21,7 +21,9 @@ const StreamProvider = ({children}: {children: ReactNode}) => {
     if (status !== "authenticated" || !session?.user) return;
     if (!API_KEY) throw new Error("Stream API key is missing");
 
-    console.log("[StreamProvider] Authenticated user:", session.user?.id);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[StreamProvider] Client created for user session');
+    }
 
     const userId = String(session.user.id);
 
