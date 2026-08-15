@@ -19,7 +19,7 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
-import { MoreVertical, MicOff, UserX, ShieldAlert, Unlock } from "lucide-react";
+import { MoreVertical, MicOff, UserX, ShieldAlert, Unlock, VideoOff, Video, Mic } from "lucide-react";
 import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 
 interface ParticipantActionsMenuProps {
@@ -28,7 +28,7 @@ interface ParticipantActionsMenuProps {
 
 export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuProps) {
   const call = useCall();
-  const { canMuteUsers, canKickUsers, canBlockUsers } = useMeetingPermissions();
+  const { canMuteUsers, canKickUsers, canBlockUsers, canGrantAudio, canGrantVideo, canRevokeAudio, canRevokeVideo } = useMeetingPermissions();
 
   const [isKickDialogOpen, setIsKickDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
@@ -55,6 +55,72 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
     } catch (err: any) {
       console.error("[Moderation] Mute error:", err);
       toast.error(err?.message || "Unable to mute participant.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Mute video
+  const handleMuteVideo = async () => {
+    if (!call) return;
+    setIsLoading(true);
+    try {
+      await call.muteUser(participant.userId, 'video');
+      toast.success(`Stopped ${participantName}'s camera`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to stop camera.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Grant mic permission (allows participant to unmute)
+  const handleGrantMic = async () => {
+    if (!call) return;
+    setIsLoading(true);
+    try {
+      await (call as any).updateUserPermissions({
+        user_id: participant.userId,
+        granted_permissions: ['send-audio'],
+      });
+      toast.success(`Enabled mic for ${participantName}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to grant mic permission.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Grant camera permission
+  const handleGrantCamera = async () => {
+    if (!call) return;
+    setIsLoading(true);
+    try {
+      await (call as any).updateUserPermissions({
+        user_id: participant.userId,
+        granted_permissions: ['send-video'],
+      });
+      toast.success(`Enabled camera for ${participantName}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to grant camera permission.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Revoke mic (prevents participant from re-unmuting)
+  const handleRevokeMic = async () => {
+    if (!call) return;
+    setIsLoading(true);
+    try {
+      await call.muteUser(participant.userId, 'audio');
+      await (call as any).updateUserPermissions({
+        user_id: participant.userId,
+        revoked_permissions: ['send-audio'],
+      });
+      toast.success(`Locked mic for ${participantName}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to lock mic.');
     } finally {
       setIsLoading(false);
     }
@@ -111,6 +177,50 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
             >
               <MicOff className="w-3.5 h-3.5 text-amber-400" />
               <span>Mute Audio</span>
+            </DropdownMenuItem>
+          )}
+
+          {canMuteUsers && (
+            <DropdownMenuItem
+              onClick={handleMuteVideo}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-zinc-200"
+            >
+              <VideoOff className="w-3.5 h-3.5 text-amber-400" />
+              <span>Stop Camera</span>
+            </DropdownMenuItem>
+          )}
+
+          {canGrantAudio && (
+            <DropdownMenuItem
+              onClick={handleGrantMic}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-emerald-300"
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>Enable Mic</span>
+            </DropdownMenuItem>
+          )}
+
+          {canGrantVideo && (
+            <DropdownMenuItem
+              onClick={handleGrantCamera}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-emerald-300"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Enable Camera</span>
+            </DropdownMenuItem>
+          )}
+
+          {canRevokeAudio && (
+            <DropdownMenuItem
+              onClick={handleRevokeMic}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-rose-400"
+            >
+              <MicOff className="w-3.5 h-3.5" />
+              <span>Lock Mic (Prevent Unmuting)</span>
             </DropdownMenuItem>
           )}
 

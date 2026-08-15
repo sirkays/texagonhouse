@@ -48,10 +48,11 @@ export function MeetingControlBar({
 }: MeetingControlBarProps) {
   const call = useCall();
   const { useHasPermissions, useIsCallRecordingInProgress } = useCallStateHooks();
-  const { canScreenShare, canRecord } = useMeetingPermissions();
+  const { canScreenShare, canRecord, canMuteUsers } = useMeetingPermissions();
 
   const isRecording = useIsCallRecordingInProgress();
   const [isTogglingRecord, setIsTogglingRecord] = useState(false);
+  const [isMutingAll, setIsMutingAll] = useState(false);
 
   const hasMicPermission = useHasPermissions("send-audio");
   const hasCamPermission = useHasPermissions("send-video");
@@ -71,6 +72,19 @@ export function MeetingControlBar({
       toast.error(err?.message || "Failed to toggle recording");
     } finally {
       setIsTogglingRecord(false);
+    }
+  };
+
+  const handleMuteAll = async () => {
+    if (!call) return;
+    setIsMutingAll(true);
+    try {
+      await call.muteAllUsers('audio');
+      toast.success('All participants muted');
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to mute all');
+    } finally {
+      setIsMutingAll(false);
     }
   };
 
@@ -155,6 +169,21 @@ export function MeetingControlBar({
             <Disc size={20} strokeWidth={2.5} className={isRecording ? "animate-spin" : ""} />
             <span className="text-[10px] font-bold tracking-wide">
               {isRecording ? "Stop Rec" : "Record"}
+            </span>
+          </button>
+        )}
+
+        {/* ── Mute All (Host only) ── */}
+        {canMuteUsers && (
+          <button
+            onClick={handleMuteAll}
+            disabled={isMutingAll}
+            title="Mute all participants"
+            className="hidden sm:flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/30 text-zinc-300 hover:text-amber-400 disabled:opacity-50"
+          >
+            <MicOff size={20} strokeWidth={2.5} />
+            <span className="text-[10px] font-bold tracking-wide">
+              {isMutingAll ? 'Muting…' : 'Mute All'}
             </span>
           </button>
         )}

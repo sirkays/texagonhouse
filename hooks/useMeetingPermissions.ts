@@ -12,12 +12,16 @@ export interface MeetingPermissions {
   canEndCall: boolean;
   canScreenShare: boolean;
   canRecord: boolean;
+  canGrantAudio: boolean;
+  canGrantVideo: boolean;
+  canRevokeAudio: boolean;
+  canRevokeVideo: boolean;
   ownCapabilities: string[];
 }
 
 /**
- * Custom hook to centrally determine meeting permissions & capabilities.
- * Combines Stream reactive capability API, NextAuth session, and call creator identity.
+ * Determines meeting permissions from real Stream capabilities.
+ * isHost is for UI layout only — moderation actions require actual Stream capabilities.
  */
 export function useMeetingPermissions(): MeetingPermissions {
   const call = useCall();
@@ -32,13 +36,13 @@ export function useMeetingPermissions(): MeetingPermissions {
   const hasEndCallPermission = useHasPermissions(OwnCapability.END_CALL);
   const hasScreenSharePermission = useHasPermissions(OwnCapability.SCREENSHARE);
   const hasStartRecordPermission = useHasPermissions(OwnCapability.START_RECORD_CALL);
+  const hasUpdateCallPermission = useHasPermissions(OwnCapability.UPDATE_CALL);
 
   const userId = session?.user?.id ? String(session.user.id) : null;
   const userRole = session?.user?.role?.toLowerCase() || "";
 
-  // Host determination:
-  // 1. User is explicit call creator (call.state.createdBy.id === userId)
-  // 2. User is teacher/admin role in Techxagon
+  // isHost: for display/layout decisions only (e.g. show host panel header)
+  // Does NOT grant Stream moderation capabilities by itself
   const isHost = useMemo(() => {
     if (!session?.user) return false;
     const createdById = call?.state?.createdBy?.id;
@@ -49,7 +53,6 @@ export function useMeetingPermissions(): MeetingPermissions {
     return false;
   }, [call?.state?.createdBy?.id, userId, userRole, session?.user]);
 
-  // Screen share browser feature detection
   const isBrowserScreenShareSupported = useMemo(() => {
     return (
       typeof window !== "undefined" &&
@@ -59,21 +62,19 @@ export function useMeetingPermissions(): MeetingPermissions {
     );
   }, []);
 
-  const canMuteUsers = isHost || hasMutePermission;
-  const canKickUsers = isHost || hasKickPermission;
-  const canBlockUsers = isHost || hasBlockPermission;
-  const canEndCall = isHost || hasEndCallPermission;
-  const canScreenShare = isBrowserScreenShareSupported && (isHost || hasScreenSharePermission);
-  const canRecord = isHost;
-
   return {
     isHost,
-    canMuteUsers,
-    canKickUsers,
-    canBlockUsers,
-    canEndCall,
-    canScreenShare,
-    canRecord,
+    // Moderation: gated on real Stream capability only
+    canMuteUsers: hasMutePermission,
+    canKickUsers: hasKickPermission,
+    canBlockUsers: hasBlockPermission,
+    canEndCall: hasEndCallPermission,
+    canScreenShare: isBrowserScreenShareSupported && hasScreenSharePermission,
+    canRecord: hasStartRecordPermission,
+    canGrantAudio: hasUpdateCallPermission || hasMutePermission,
+    canGrantVideo: hasUpdateCallPermission || hasMutePermission,
+    canRevokeAudio: hasMutePermission,
+    canRevokeVideo: hasMutePermission,
     ownCapabilities,
   };
 }

@@ -5,6 +5,7 @@ import {
   CallingState,
   PaginatedGridLayout,
   SpeakerLayout,
+  ParticipantsAudio,
   useCallStateHooks,
   useCall,
   ParticipantView,
@@ -312,81 +313,8 @@ const ParticipantsList = memo(function ParticipantsList({
 });
 
 // ── Deduplicated Grid Layout (replaces PaginatedGridLayout to filter ghost sessions) ──
-
-const DeduplicatedGridLayout = memo(function DeduplicatedGridLayout({
-  groupSize,
-}: {
-  groupSize: number;
-}) {
-  const { useParticipants } = useCallStateHooks();
-  const allParticipants = useParticipants();
-  const [page, setPage] = useState(0);
-
-  // Deduplicate by userId — keep the FIRST (most active) session per user
-  const participants = useMemo(() => {
-    const seen = new Set<string>();
-    const list: StreamVideoParticipant[] = [];
-    for (const p of allParticipants) {
-      if (!seen.has(p.userId)) {
-        seen.add(p.userId);
-        list.push(p);
-      }
-    }
-    return list;
-  }, [allParticipants]);
-
-  const totalPages = Math.max(1, Math.ceil(participants.length / groupSize));
-  const currentPage = Math.min(page, totalPages - 1);
-
-  const pageParticipants = useMemo(() => {
-    const start = currentPage * groupSize;
-    return participants.slice(start, start + groupSize);
-  }, [participants, currentPage, groupSize]);
-
-  // Reset page if it goes out of bounds
-  useEffect(() => {
-    if (page >= totalPages) setPage(Math.max(0, totalPages - 1));
-  }, [totalPages, page]);
-
-  // CSS class for grid group sizing (matches Stream's class convention for our CSS overrides)
-  const groupClass = useMemo(() => {
-    const count = pageParticipants.length;
-    if (count <= 1) return "str-video__paginated-grid-layout--one";
-    if (count <= 4) return "str-video__paginated-grid-layout--two-four";
-    return "str-video__paginated-grid-layout--five-nine";
-  }, [pageParticipants.length]);
-
-  return (
-    <div className="str-video__paginated-grid-layout" style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <div className={`str-video__paginated-grid-layout__group ${groupClass}`}>
-        {pageParticipants.map((participant) => (
-          <ParticipantView
-            key={participant.sessionId}
-            participant={participant}
-          />
-        ))}
-      </div>
-      {totalPages > 1 && (
-        <>
-          <button
-            disabled={currentPage === 0}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            aria-label="previous page"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <button
-            disabled={currentPage >= totalPages - 1}
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            aria-label="next page"
-          >
-            <ChevronRight size={20} />
-          </button>
-        </>
-      )}
-    </div>
-  );
-});
+// Audio is handled by <ParticipantsAudio /> rendered at the section level.
+// Video layout uses Stream's PaginatedGridLayout for correct pagination + audio.
 
 // ── Main Component ──
 
@@ -403,8 +331,12 @@ const MeetingRoom = () => {
   const [isEndMeetingDialogOpen, setIsEndMeetingDialogOpen] = useState(false);
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [raisedHandsMap, setRaisedHandsMap] = useState<Map<string, RaisedHandState>>(new Map());
+  const [isAudioBlocked, setIsAudioBlocked] = useState(false);
 
   const screenShareContainerRef = useRef<HTMLDivElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const micPendingRef = useRef(false);
+  const camPendingRef = useRef(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -450,6 +382,7 @@ const MeetingRoom = () => {
   callRef.current = call;
   const lastReactionTimeRef = useRef(0);
   const reactionTimeoutRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const handRevisionMap = useRef<Map<string, number>>(new Map());
 
   const meetingId = useMemo(() => {
     const parts = pathname?.split("/") || [];
@@ -478,6 +411,32 @@ const MeetingRoom = () => {
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
+
+  // Register grid viewport with Stream for DynaScale optimization
+  useEffect(() => {
+    if (!call || !gridContainerRef.current) return;
+    call.setViewport(gridContainerRef.current);
+  }, [call, gridContainerRef.current]);
+
+  // Detect autoplay-blocked state
+  useEffect(() => {
+    if (!call) return;
+    const handleAudioBlocked = () => setIsAudioBlocked(true);
+    // Stream SDK fires 'call.audio_playback_failed' or similar - handle broadly
+    const checkAutoplay = async () => {
+      try {
+        // Try to create a silent audio context to detect block
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        if (ctx.state === 'suspended') {
+          setIsAudioBlocked(true);
+        }
+        ctx.close();
+      } catch {
+        // ignore
+      }
+    };
+    checkAutoplay();
+  }, [call]);
 
   const toggleFullscreen = useCallback(() => {
     const el = screenShareContainerRef.current;
@@ -544,12 +503,12 @@ const MeetingRoom = () => {
   const handleToggleRaiseHand = useCallback(async () => {
     if (!callRef.current) return;
     const nextState = !isHandRaised;
-    const userName = session?.user?.name || localParticipant?.name || "Participant";
-    const userId = localParticipant?.userId || String(session?.user?.id || "unknown");
+    const userId = localParticipant?.userId || String(session?.user?.id || 'unknown');
+    const userName = session?.user?.name || localParticipant?.name || 'Participant';
+    const rev = Date.now();
 
+    // Optimistic local update
     setIsHandRaised(nextState);
-
-    // Update local map
     setRaisedHandsMap((prev) => {
       const updated = new Map(prev);
       if (nextState) {
@@ -561,29 +520,34 @@ const MeetingRoom = () => {
     });
 
     try {
-      if (nextState) {
-        // Stream native raised-hand reaction
-        await callRef.current.sendReaction({
-          type: "raised-hand",
-          emoji_code: ":raise-hand:",
-          custom: { isHandRaised: true },
-        });
-      }
-
-      // Network-visible lower/raise custom event so ALL clients update state
+      // Single authoritative protocol: one custom event for both raise and lower
       await callRef.current.sendCustomEvent({
-        type: "hand_raise_state",
+        type: 'hand_raise_state',
+        userId,
         raised: nextState,
         userName,
+        rev,
       } as any);
 
       if (nextState) {
-        toast.info("Your hand is raised");
+        toast.info('Your hand is raised ✋');
       } else {
-        toast.info("Your hand is lowered");
+        toast.info('Your hand is lowered');
       }
     } catch (err) {
-      console.error("Error toggling raise hand:", err);
+      // Rollback optimistic state on failure
+      console.error('Error toggling raise hand:', err);
+      setIsHandRaised(!nextState);
+      setRaisedHandsMap((prev) => {
+        const updated = new Map(prev);
+        if (!nextState) {
+          updated.set(userId, { raised: true, userName });
+        } else {
+          updated.delete(userId);
+        }
+        return updated;
+      });
+      toast.error('Could not update hand state. Please try again.');
     }
   }, [isHandRaised, session?.user?.name, session?.user?.id, localParticipant?.name, localParticipant?.userId]);
 
@@ -636,16 +600,35 @@ const MeetingRoom = () => {
     router.push(getDashboardPath());
   }, [router, getDashboardPath, screenShareStatus]);
 
-  const handleToggleMic = useCallback(() => {
-    if (!callRef.current) return;
-    callRef.current.microphone.toggle();
-    persistCurrentState(!isMicOff, !isCamOff);
+  const handleToggleMic = useCallback(async () => {
+    if (!callRef.current || micPendingRef.current) return;
+    micPendingRef.current = true;
+    const targetState = isMicOff; // we want to toggle: if currently off, turn on
+    try {
+      await callRef.current.microphone.toggle();
+      // Only persist after confirmed state change
+      persistCurrentState(!isMicOff, !isCamOff);
+    } catch (err) {
+      console.error('Mic toggle failed:', err);
+      toast.error('Could not toggle microphone. Please try again.');
+    } finally {
+      micPendingRef.current = false;
+    }
   }, [isMicOff, isCamOff, persistCurrentState]);
 
-  const handleToggleCam = useCallback(() => {
-    if (!callRef.current) return;
-    callRef.current.camera.toggle();
-    persistCurrentState(!isMicOff, !isCamOff);
+  const handleToggleCam = useCallback(async () => {
+    if (!callRef.current || camPendingRef.current) return;
+    camPendingRef.current = true;
+    try {
+      await callRef.current.camera.toggle();
+      // Only persist after confirmed state change
+      persistCurrentState(!isMicOff, !isCamOff);
+    } catch (err) {
+      console.error('Camera toggle failed:', err);
+      toast.error('Could not toggle camera. Please try again.');
+    } finally {
+      camPendingRef.current = false;
+    }
   }, [isMicOff, isCamOff, persistCurrentState]);
 
   // ── Listen for custom events (chat & hand raises) ──
@@ -653,7 +636,7 @@ const MeetingRoom = () => {
     if (!call) return;
     const handler = (event: any) => {
       const eventType = event.custom?.type;
-      const senderUserId = event.user?.id || event.user_id || "unknown";
+      const senderUserId = event.user?.id || event.user_id || event.custom?.userId || 'unknown';
 
       if (eventType === "chat_message") {
         const incoming: ChatMessage = {
@@ -666,12 +649,20 @@ const MeetingRoom = () => {
       } else if (eventType === "hand_raise_state") {
         const isRaised = !!event.custom?.raised;
         const senderName = event.custom?.userName || event.user?.name || "Participant";
+        const incomingRev = Number(event.custom?.rev || 0);
+        const userId = event.custom?.userId || senderUserId;
+
+        // Stale-event rejection: ignore if we've seen a newer revision for this user
+        const lastRev = handRevisionMap.current.get(userId) || 0;
+        if (incomingRev <= lastRev && incomingRev !== 0) return;
+        handRevisionMap.current.set(userId, incomingRev);
+
         setRaisedHandsMap((prev) => {
           const updated = new Map(prev);
           if (isRaised) {
-            updated.set(senderUserId, { raised: true, userName: senderName });
+            updated.set(userId, { raised: true, userName: senderName });
           } else {
-            updated.delete(senderUserId);
+            updated.delete(userId);
           }
           return updated;
         });
@@ -695,6 +686,28 @@ const MeetingRoom = () => {
       call.off("call.ended", handleCallEnded);
     };
   }, [call, router, getDashboardPath]);
+
+  // Clear raised-hand state when a participant leaves
+  useEffect(() => {
+    if (!call) return;
+    const handleParticipantLeft = (event: any) => {
+      const leftUserId = event.participant?.userId || event.user?.id;
+      if (!leftUserId) return;
+      setRaisedHandsMap((prev) => {
+        if (!prev.has(leftUserId)) return prev;
+        const updated = new Map(prev);
+        updated.delete(leftUserId);
+        return updated;
+      });
+      handRevisionMap.current.delete(leftUserId);
+    };
+    // @ts-ignore
+    call.on('call.participant_left', handleParticipantLeft);
+    return () => {
+      // @ts-ignore
+      call.off('call.participant_left', handleParticipantLeft);
+    };
+  }, [call]);
 
   // ── Restore chat messages from sessionStorage ──
   useEffect(() => {
@@ -731,16 +744,8 @@ const MeetingRoom = () => {
       const emoji = event.reaction?.emoji_code || event.reaction?.custom?.emoji;
       const reactionType = event.reaction?.type;
 
-      // Handle raised-hand reaction
-      if (reactionType === "raised-hand" || emoji === "✋") {
-        const senderUserId = event.reaction?.user_id || event.reaction?.user?.id || "unknown";
-        const senderName = event.reaction?.user?.name || "Participant";
-        setRaisedHandsMap((prev) => {
-          const updated = new Map(prev);
-          updated.set(senderUserId, { raised: true, userName: senderName });
-          return updated;
-        });
-      }
+      // Note: raised-hand state is managed exclusively via hand_raise_state custom events.
+      // Reactions are for visual emoji overlays only.
 
       if (emoji && ALLOWED_EMOJIS.includes(emoji)) {
         const id = crypto.randomUUID();
@@ -800,13 +805,18 @@ const MeetingRoom = () => {
     }
 
     return (
-      <div className="w-full h-full overflow-hidden custom-paginated-grid relative">
-        <DeduplicatedGridLayout
-          groupSize={groupSize}
-        />
+      <div ref={gridContainerRef} className="w-full h-full overflow-hidden custom-paginated-grid relative">
+        {/* ParticipantsAudio renders audio for ALL remote participants, regardless of which page is visible.
+            muteAudio on ParticipantView tiles prevents duplicate audio playback. */}
+        <ParticipantsAudio />
+        <PaginatedGridLayout groupSize={groupSize} />
       </div>
     );
   }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen]);
+
+  // Active speaker for off-page indicator
+  const { useDominantSpeaker: _useDominantSpeaker } = useCallStateHooks();
+  const dominantSpeaker = _useDominantSpeaker?.();
 
   if (status === "loading") {
     return (
@@ -885,6 +895,14 @@ const MeetingRoom = () => {
         isOffline={isOffline}
         isMigrating={isMigrating}
       />
+
+      {/* Active Speaker Indicator — shown when dominant speaker is not visible on current page */}
+      {dominantSpeaker && !dominantSpeaker.isLocalParticipant && (
+        <div className="fixed top-[60px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600/90 text-white text-xs font-semibold shadow-lg backdrop-blur-sm pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          <span>Speaking: {dominantSpeaker.name || dominantSpeaker.userId}</span>
+        </div>
+      )}
 
       {/* Main Stage */}
       <div className="flex-1 min-h-0 w-full flex items-stretch justify-center px-1 sm:px-2 pt-1 pb-24 sm:pb-28">
@@ -986,6 +1004,37 @@ const MeetingRoom = () => {
           </div>
         </div>
       </div>
+
+      {/* Autoplay-blocked banner — shown above control dock, never blocks controls */}
+      {isAudioBlocked && (
+        <div
+          className="fixed bottom-[88px] left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 px-4 py-2.5 rounded-xl bg-zinc-900/95 border border-amber-500/40 text-white text-sm font-medium shadow-xl backdrop-blur-sm"
+        >
+          <span className="text-amber-400 text-base">🔇</span>
+          <span>Tap to hear the meeting</span>
+          <button
+            onClick={async () => {
+              try {
+                await call?.resumeAudio?.();
+                const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+                await ctx.resume();
+                ctx.close();
+              } catch {}
+              setIsAudioBlocked(false);
+            }}
+            className="ml-2 px-3 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs transition cursor-pointer"
+          >
+            Enable Audio
+          </button>
+          <button
+            onClick={() => setIsAudioBlocked(false)}
+            className="w-5 h-5 rounded flex items-center justify-center text-zinc-400 hover:text-white transition cursor-pointer text-xs"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Control Dock */}
       <MeetingControlBar

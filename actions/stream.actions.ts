@@ -82,12 +82,26 @@ export const createStreamCallServer = async (
         custom: { description, is_public: isPublic },
         settings_override: {
           backstage: { enabled: false },
-          recording: {
-            mode: "available",
-          },
+          recording: { mode: 'available' },
+          // @ts-ignore
+          audio: { mic_default_on: false },
+          // @ts-ignore
+          video: { camera_default_on: false },
         },
       },
     });
+
+    // Grant creator host-level capabilities
+    await call.updateCallMembers({
+      update_members: [{
+        user_id: userId,
+        role: 'host',
+      }],
+    }).catch((e: any) => {
+      // Non-fatal: member update may fail if member already has role
+      console.warn('[StreamServer] Member role update:', e?.message);
+    });
+
     return { success: true };
   } catch (error) {
     console.error("[StreamServer] Call creation error:", error);
