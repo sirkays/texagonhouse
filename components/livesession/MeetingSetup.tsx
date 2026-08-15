@@ -13,6 +13,8 @@ import { useEffect, useState, useMemo } from "react";
 import { Button } from "../ui/button";
 import { usePathname } from "next/navigation";
 import { useMediaPreferences } from "@/hooks/useMediaPreferences";
+import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
+import { toast } from "sonner";
 import {
   Mic,
   MicOff,
@@ -45,6 +47,29 @@ const MeetingSetup = ({
     return parts[parts.length - 1] || "unknown";
   }, [pathname]);
   const { persistCurrentState } = useMediaPreferences(meetingId);
+
+  const { isHost, canMuteUsers } = useMeetingPermissions();
+  const [roomMicPolicy, setRoomMicPolicy] = useState<'open' | 'locked'>('open');
+  const [roomCamPolicy, setRoomCamPolicy] = useState<'open' | 'locked'>('open');
+  const [isApplyingPolicy, setIsApplyingPolicy] = useState(false);
+
+  const applyRoomPolicy = async () => {
+    if (!call || !canMuteUsers) return;
+    setIsApplyingPolicy(true);
+    try {
+      if (roomMicPolicy === 'locked') {
+        await call.muteAllUsers('audio');
+      }
+      if (roomCamPolicy === 'locked') {
+        await call.muteAllUsers('video');
+      }
+      toast.success('Room policy applied. Participants will join with these settings.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not apply room policy.');
+    } finally {
+      setIsApplyingPolicy(false);
+    }
+  };
 
   const { useCallEndedAt, useCallStartsAt } = useCallStateHooks();
   const callStartsAt = useCallStartsAt();
@@ -223,6 +248,66 @@ const MeetingSetup = ({
             </div>
             <User className="w-4 h-4 text-zinc-600 ml-auto shrink-0" />
           </div>
+
+          {/* Host Room Controls — only shown to hosts */}
+          {isHost && canMuteUsers && (
+            <div className="p-3.5 rounded-xl bg-amber-500/8 border border-amber-500/20 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <p className="text-xs font-semibold text-amber-300">Host Room Policy</p>
+              </div>
+              <p className="text-[11px] text-zinc-400 -mt-1">Set default mic and camera state for all participants when the session starts.</p>
+
+              {/* Mic policy */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                  {roomMicPolicy === 'locked' ? <MicOff className="w-3.5 h-3.5 text-red-400" /> : <Mic className="w-3.5 h-3.5 text-emerald-400" />}
+                  <span>Participant Microphones</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRoomMicPolicy(p => p === 'open' ? 'locked' : 'open')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                    roomMicPolicy === 'locked'
+                      ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+                      : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                  }`}
+                >
+                  {roomMicPolicy === 'locked' ? 'Locked Off' : 'Open'}
+                </button>
+              </div>
+
+              {/* Camera policy */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-zinc-300">
+                  {roomCamPolicy === 'locked' ? <VideoOff className="w-3.5 h-3.5 text-red-400" /> : <VideoIcon className="w-3.5 h-3.5 text-emerald-400" />}
+                  <span>Participant Cameras</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRoomCamPolicy(p => p === 'open' ? 'locked' : 'open')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
+                    roomCamPolicy === 'locked'
+                      ? 'bg-red-500/20 border border-red-500/40 text-red-400'
+                      : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                  }`}
+                >
+                  {roomCamPolicy === 'locked' ? 'Locked Off' : 'Open'}
+                </button>
+              </div>
+
+              {(roomMicPolicy === 'locked' || roomCamPolicy === 'locked') && (
+                <button
+                  type="button"
+                  onClick={applyRoomPolicy}
+                  disabled={isApplyingPolicy}
+                  className="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-xs transition-all cursor-pointer"
+                >
+                  {isApplyingPolicy ? 'Applying…' : 'Apply Room Policy'}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Toggle option */}
           <label className="flex items-start gap-3 cursor-pointer group p-3.5 rounded-xl bg-white/5 border border-white/8 hover:border-[#EF7B55]/30 transition-all">
