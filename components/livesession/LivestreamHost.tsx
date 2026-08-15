@@ -23,8 +23,8 @@ export default function LivestreamHost() {
   } = useCallStateHooks();
 
   const isLive = useIsCallLive();
-  const { isMuted: isMicMuted, isEnabled: isMicEnabled } = useMicrophoneState();
-  const { isMuted: isCamMuted, isEnabled: isCamEnabled } = useCameraState();
+  const { isMute: isMicMuted, isEnabled: isMicEnabled } = useMicrophoneState();
+  const { isMute: isCamMuted, isEnabled: isCamEnabled } = useCameraState();
   const isMicOff = isMicMuted || isMicEnabled === false;
   const isCamOff = isCamMuted || isCamEnabled === false;
   const participantCount = useParticipantCount();
