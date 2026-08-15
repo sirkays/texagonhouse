@@ -18,6 +18,8 @@ import {
   VideoOff,
   PhoneOff,
   Disc,
+  Mic,
+  Video,
 } from "lucide-react";
 import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 
@@ -64,6 +66,52 @@ export function MoreMeetingMenu({
       toast.success("Stopped video for all participants");
     } catch (err: any) {
       toast.error(err?.message || "Failed to stop video for all participants.");
+    }
+  };
+
+  const handleEnableAllAudio = async () => {
+    if (!call) return;
+    try {
+      const participants = call.state.participants;
+      const remote = participants.filter((p: any) => !p.isLocalParticipant);
+      let granted = 0;
+      for (const p of remote) {
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: p.userId,
+            grant_permissions: ['send-audio'],
+          });
+          granted++;
+        } catch {
+          // individual grant may fail
+        }
+      }
+      toast.success(`Enabled audio for ${granted} participant(s)`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to enable audio for participants.');
+    }
+  };
+
+  const handleEnableAllVideo = async () => {
+    if (!call) return;
+    try {
+      const participants = call.state.participants;
+      const remote = participants.filter((p: any) => !p.isLocalParticipant);
+      let granted = 0;
+      for (const p of remote) {
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: p.userId,
+            grant_permissions: ['send-video'],
+          });
+          granted++;
+        } catch {
+          // individual grant may fail
+        }
+      }
+      toast.success(`Enabled video for ${granted} participant(s)`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to enable video for participants.');
     }
   };
 
@@ -177,6 +225,22 @@ export function MoreMeetingMenu({
                 >
                   <VideoOff className="w-4 h-4" />
                   <span>Stop All Videos</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleEnableAllAudio}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-emerald-400"
+                >
+                  <Mic className="w-4 h-4" />
+                  <span>Enable All Audio</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={handleEnableAllVideo}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl hover:bg-white/10 cursor-pointer text-emerald-400"
+                >
+                  <Video className="w-4 h-4" />
+                  <span>Enable All Video</span>
                 </DropdownMenuItem>
               </>
             )}

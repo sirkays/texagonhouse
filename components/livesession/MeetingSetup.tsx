@@ -57,13 +57,58 @@ const MeetingSetup = ({
     if (!call || !canMuteUsers) return;
     setIsApplyingPolicy(true);
     try {
+      const { useParticipants } = useCallStateHooks();
+      // Can't use hooks here — get participants from call state directly
+      const participants = call.state.participants;
+      const remoteParticipants = participants.filter((p: any) => !p.isLocalParticipant);
+      const userId = String(session?.user?.id || '');
+
       if (roomMicPolicy === 'locked') {
         await call.muteAllUsers('audio');
+      } else {
+        // Unlock: grant send-audio back to all remote participants
+        for (const p of remoteParticipants) {
+          try {
+            await (call as any).updateUserPermissions({
+              user_id: p.userId,
+              grant_permissions: ['send-audio'],
+            });
+          } catch {
+            // individual grant may fail — continue
+          }
+        }
       }
+
       if (roomCamPolicy === 'locked') {
         await call.muteAllUsers('video');
+      } else {
+        // Unlock: grant send-video back to all remote participants
+        for (const p of remoteParticipants) {
+          try {
+            await (call as any).updateUserPermissions({
+              user_id: p.userId,
+              grant_permissions: ['send-video'],
+            });
+          } catch {
+            // individual grant may fail — continue
+          }
+        }
       }
-      toast.success('Room policy applied. Participants will join with these settings.');
+
+      // Re-grant host's own permissions to ensure host is never locked out
+      if (userId) {
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: userId,
+            grant_permissions: ['send-audio', 'send-video'],
+          });
+        } catch {}
+      }
+
+      toast.success(roomMicPolicy === 'locked' || roomCamPolicy === 'locked'
+        ? 'Room policy applied — participants locked.'
+        : 'Participants unlocked — they can now enable mic/camera.'
+      );
     } catch (err: any) {
       toast.error(err?.message || 'Could not apply room policy.');
     } finally {
@@ -296,16 +341,23 @@ const MeetingSetup = ({
                 </button>
               </div>
 
-              {(roomMicPolicy === 'locked' || roomCamPolicy === 'locked') && (
-                <button
-                  type="button"
-                  onClick={applyRoomPolicy}
-                  disabled={isApplyingPolicy}
-                  className="w-full py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold text-xs transition-all cursor-pointer"
-                >
-                  {isApplyingPolicy ? 'Applying…' : 'Apply Room Policy'}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={applyRoomPolicy}
+                disabled={isApplyingPolicy}
+                className={`w-full py-2 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                  roomMicPolicy === 'locked' || roomCamPolicy === 'locked'
+                    ? 'bg-amber-500 hover:bg-amber-400 text-black'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-black'
+                } disabled:opacity-50`}
+              >
+                {isApplyingPolicy
+                  ? 'Applying…'
+                  : roomMicPolicy === 'locked' || roomCamPolicy === 'locked'
+                    ? 'Lock Participants'
+                    : 'Unlock Participants'
+                }
+              </button>
             </div>
           )}
 
