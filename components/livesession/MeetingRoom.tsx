@@ -333,6 +333,8 @@ const MeetingRoom = () => {
   const [isHandRaised, setIsHandRaised] = useState(false);
   const [raisedHandsMap, setRaisedHandsMap] = useState<Map<string, RaisedHandState>>(new Map());
   const [isAudioBlocked, setIsAudioBlocked] = useState(false);
+  const [activeSpeaker, setActiveSpeaker] = useState<{name: string; userId: string} | null>(null);
+  const activeSpeakerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const screenShareContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -815,9 +817,39 @@ const MeetingRoom = () => {
     );
   }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen, allParticipantsRaw]);
 
-  // Active speaker for off-page indicator
+  // Active speaker tracking with auto-clear
   const { useDominantSpeaker: _useDominantSpeaker } = useCallStateHooks();
   const dominantSpeaker = _useDominantSpeaker?.();
+
+  useEffect(() => {
+    if (dominantSpeaker && dominantSpeaker.isSpeaking && !dominantSpeaker.isLocalParticipant) {
+      setActiveSpeaker({
+        name: dominantSpeaker.name || dominantSpeaker.userId,
+        userId: dominantSpeaker.userId,
+      });
+      // Clear any existing timeout
+      if (activeSpeakerTimeoutRef.current) {
+        clearTimeout(activeSpeakerTimeoutRef.current);
+      }
+      // Auto-hide after 3 seconds of no speech
+      activeSpeakerTimeoutRef.current = setTimeout(() => {
+        setActiveSpeaker(null);
+      }, 3000);
+    } else if (!dominantSpeaker?.isSpeaking) {
+      // Speaker stopped — start 3-second fade timeout
+      if (activeSpeakerTimeoutRef.current) {
+        clearTimeout(activeSpeakerTimeoutRef.current);
+      }
+      activeSpeakerTimeoutRef.current = setTimeout(() => {
+        setActiveSpeaker(null);
+      }, 3000);
+    }
+    return () => {
+      if (activeSpeakerTimeoutRef.current) {
+        clearTimeout(activeSpeakerTimeoutRef.current);
+      }
+    };
+  }, [dominantSpeaker, dominantSpeaker?.isSpeaking, dominantSpeaker?.userId]);
 
   if (status === "loading") {
     return (
@@ -897,11 +929,34 @@ const MeetingRoom = () => {
         isMigrating={isMigrating}
       />
 
-      {/* Active Speaker Indicator — shown when dominant speaker is not visible on current page */}
-      {dominantSpeaker && !dominantSpeaker.isLocalParticipant && (
-        <div className="fixed top-[60px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600/90 text-white text-xs font-semibold shadow-lg backdrop-blur-sm pointer-events-none">
+      {/* Active Speaker Indicator — clears 3s after speaker stops */}
+      {activeSpeaker && (
+        <div className="fixed top-[60px] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600/90 text-white text-xs font-semibold shadow-lg backdrop-blur-sm pointer-events-none transition-opacity duration-500">
           <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-          <span>Speaking: {dominantSpeaker.name || dominantSpeaker.userId}</span>
+          <span>Speaking: {activeSpeaker.name}</span>
+        </div>
+      )}
+
+      {/* Raised Hands Floating Badges — visible on the main stage */}
+      {raisedHandsMap.size > 0 && (
+        <div className="fixed top-[100px] right-3 z-30 flex flex-col gap-1.5 pointer-events-none">
+          {Array.from(raisedHandsMap.entries())
+            .filter(([, state]) => state.raised)
+            .slice(0, 5)
+            .map(([userId, state]) => (
+              <div
+                key={userId}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-amber-500/90 text-black text-[11px] font-bold shadow-lg backdrop-blur-sm animate-bounce"
+              >
+                <span>✋</span>
+                <span className="max-w-[120px] truncate">{state.userName}</span>
+              </div>
+            ))}
+          {raisedHandsMap.size > 5 && (
+            <div className="text-[10px] text-amber-400 font-semibold text-center">
+              +{raisedHandsMap.size - 5} more
+            </div>
+          )}
         </div>
       )}
 
