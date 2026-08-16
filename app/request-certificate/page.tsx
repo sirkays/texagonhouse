@@ -13,6 +13,7 @@ import {
   ArrowLeft,
   ChevronRight,
 } from "lucide-react";
+import { useBrand } from "@/hooks/use-brand";
 
 /* ─── Types ─────────────────────────────────────────────── */
 type Org = { id: number; name: string; slug: string };
@@ -183,6 +184,7 @@ function CertificatePreview({ cert }: { cert: CertData }) {
 
 /* ─── Main Page ──────────────────────────────────────────── */
 export default function RequestCertificatePage() {
+  const brand = useBrand();
   const [tab, setTab] = useState<"request" | "check">("request");
 
   /* ── Request form state ── */
@@ -314,10 +316,10 @@ export default function RequestCertificatePage() {
       <header className="bg-white border-b shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
           <div className="w-9 h-9 relative">
-            <Image src="/texagon-logo.png" fill className="object-contain" alt="Techxagon" />
+            <Image src={brand.logo} fill className="object-contain" alt={brand.name} />
           </div>
           <div>
-            <h1 className="text-base font-bold text-gray-900 leading-none">Techxagon Academy</h1>
+            <h1 className="text-base font-bold text-gray-900 leading-none">{brand.fullName}</h1>
             <p className="text-xs text-gray-500">Certificate Portal</p>
           </div>
         </div>
@@ -333,7 +335,7 @@ export default function RequestCertificatePage() {
             Certificate Request Portal
           </h2>
           <p className="text-gray-500 text-sm sm:text-base max-w-md mx-auto">
-            Request your certificate even if you don't have a Techxagon account. Fill in your
+            Request your certificate even if you don't have an account. Fill in your
             details and we'll notify the organisation.
           </p>
         </div>
@@ -641,7 +643,7 @@ export default function RequestCertificatePage() {
 
       {/* Footer */}
       <footer className="text-center py-6 text-xs text-gray-400">
-        © {new Date().getFullYear()} Techxagon Academy. All rights reserved.
+        © {new Date().getFullYear()} {brand.fullName}. All rights reserved.
       </footer>
     </div>
   );

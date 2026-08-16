@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import ParentSignupFlow from "@/components/signup/ParentSignupForm"; // this is your flow component export
 import ParentBiodataForm from "@/components/signup/ParentBiodataForm";
 import Image from "next/image";
+import { useBrand } from "@/hooks/use-brand";
 
 const STORAGE_KEY = "parentSignupJourney";
 
@@ -22,6 +23,7 @@ type JourneyState = {
 };
 
 export default function ParentSignupPage() {
+  const brand = useBrand();
   const [step, setStep] = useState<"signup" | "biodata">("signup");
   const [parentProfileId, setParentProfileId] = useState<number | null>(null);
   const cancelRegistration = () => {
@@ -92,21 +94,22 @@ export default function ParentSignupPage() {
 
       <div className="flex-1 min-h-0 flex items-start justify-center px-4 py-10 sm:px-8 lg:px-12 xl:px-18 overflow-y-auto scrollbar-hide">
         <div className="w-full max-w-md">
+          {/* Logo/Brand */}
           <div className="flex items-center justify-center mb-8">
             <Image
-              src="/logo.png"
-              alt="TechXagon Logo"
-              width={56}
-              height={56}
-              className="rounded-lg mr-3 sm:mr-4"
+              src={brand.logo}
+              alt={brand.logoAlt}
+              width={brand.id === "nimet" ? 130 : 56}
+              height={brand.id === "nimet" ? 48 : 56}
+              className="rounded-lg mr-3 sm:mr-4 object-contain"
             />
             <div>
               <h6 className="text-gray-900 font-extrabold text-lg sm:text-2xl whitespace-nowrap">
-                TECHXAGON ACADEMY
+                {brand.fullName.toUpperCase()}
               </h6>
               <hr className="w-full my-1 sm:my-2 border-gray-900" />
               <p className="text-gray-600 italic text-sm sm:text-lg">
-                Readying the Future
+                {brand.tagline}
               </p>
             </div>
           </div>

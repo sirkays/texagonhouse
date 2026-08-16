@@ -9,6 +9,7 @@ import {
   Search, X, Filter, Users, SortAsc, SortDesc,
   ChevronDown, CheckCircle,
 } from "lucide-react";
+import { useBrand } from "@/hooks/use-brand";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,7 +127,8 @@ function FilterDropdown({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ParentReportsListPage() {
+export default function ParentReportsPage() {
+  const brand = useBrand();
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -305,7 +307,7 @@ export default function ParentReportsListPage() {
       {loading && (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <div className="w-16 h-16 bg-[#EF7B55]/10 rounded-2xl flex items-center justify-center">
-            <Image src="/texagon-logo.png" alt="Techxagon" width={36} height={36} className="object-contain animate-pulse" />
+            <Image src={brand.logo} alt={brand.name} width={36} height={36} className="object-contain animate-pulse" />
           </div>
           <Loader2 className="w-6 h-6 text-[#EF7B55] animate-spin" />
           <p className="text-sm text-slate-500">Loading your reports…</p>
@@ -334,11 +336,11 @@ export default function ParentReportsListPage() {
             <div className="relative z-10 flex items-start gap-6">
               <div className="flex-shrink-0">
                 <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <Image src="/texagon-logo.png" alt="Techxagon" width={40} height={40} className="object-contain brightness-0 invert" />
+                  <Image src={brand.logo} alt={brand.name} width={40} height={40} className={`object-contain ${brand.id === "techxagon" ? "brightness-0 invert" : ""}`} />
                 </div>
               </div>
               <div>
-                <p className="text-white/80 text-xs font-semibold tracking-widest uppercase mb-1">Techxagon Academy</p>
+                <p className="text-white/80 text-xs font-semibold tracking-widest uppercase mb-1">{brand.fullName}</p>
                 <h2 className="text-2xl font-bold mb-2">No Reports Yet</h2>
                 <p className="text-white/80 text-sm leading-relaxed max-w-md">
                   Your children&apos;s teachers haven&apos;t published any reports yet. When a teacher shares a report link with you, follow the link and you&apos;ll be taken straight to the report in this dashboard.

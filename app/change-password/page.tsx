@@ -8,8 +8,10 @@ import Image from "next/image";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { useBrand } from "@/hooks/use-brand";
 
 export default function ChangePassword() {
+  const brand = useBrand();
   const { data: session, status, update } = useSession();
   const router = useRouter();
 
@@ -265,11 +267,11 @@ export default function ChangePassword() {
         <div className="max-w-sm mx-auto w-full">
           {/* Branding */}
           <div className="flex items-center mb-10">
-            <Image src="/logo.png" alt="TechXagon Logo" width={64} height={64} className="rounded-lg mr-4" priority />
+            <Image src={brand.logo} alt={brand.logoAlt} width={brand.id === "nimet" ? 120 : 64} height={64} className="rounded-lg mr-4 object-contain" priority />
             <div className="flex flex-col">
-              <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">TECHXAGON ACADEMY</h6>
+              <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">{brand.fullName.toUpperCase()}</h6>
               <hr className="w-full my-2 border-gray-900" />
-              <p className="text-gray-600 italic text-lg">Readying the Future</p>
+              <p className="text-gray-600 italic text-sm">{brand.tagline}</p>
             </div>
           </div>
 
@@ -389,8 +391,16 @@ export default function ChangePassword() {
         </div>
       </div>
 
-      <div className="w-full md:w-[60%] flex flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center"
-        style={{ backgroundImage: "url('/texagon_sva.svg')" }} />
+      <div className={`w-full md:w-[60%] flex flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center ${brand.id === "nimet" ? "bg-gradient-to-br from-[#006B3E] via-[#005230] to-[#071a47]" : ""}`}
+        style={brand.id === "techxagon" ? { backgroundImage: "url('/texagon_sva.svg')" } : undefined}>
+        {brand.id === "nimet" && (
+          <div className="flex flex-col items-center text-center p-8 text-white max-w-lg">
+            <Image src={brand.logo} alt={brand.logoAlt} width={200} height={70} className="mb-6 object-contain brightness-0 invert" />
+            <h2 className="text-3xl font-extrabold mb-3">{brand.fullName}</h2>
+            <p className="text-emerald-100 text-lg">{brand.tagline}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

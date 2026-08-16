@@ -10,6 +10,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ro } from "date-fns/locale";
+import { useBrand } from "@/hooks/use-brand";
 
 interface AnimatedWordsProps {
   text: string;
@@ -53,6 +54,7 @@ function AnimatedWords({
 }
 
 export default function LoginContent() {
+  const brand = useBrand();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -443,19 +445,19 @@ export default function LoginContent() {
         <div className="max-w-sm mx-auto w-full">
           <div className="flex items-center mb-10">
             <Image
-              src="/logo.png"
-              alt="TechXagon Logo"
-              width={64}
-              height={64}
-              className="rounded-lg mr-4"
+              src={brand.logo}
+              alt={brand.logoAlt}
+              width={brand.id === "nimet" ? 140 : 64}
+              height={brand.id === "nimet" ? 54 : 64}
+              className="rounded-lg mr-4 object-contain"
             />
             <div className="flex flex-col">
               <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">
-                TECHXAGON ACADEMY
+                {brand.fullName.toUpperCase()}
               </h6>
               <hr className="w-full my-2 border-gray-900" />
-              <p className="text-gray-600 italic text-lg">
-                Readying the Future
+              <p className="text-gray-600 italic text-sm sm:text-base">
+                {brand.tagline}
               </p>
             </div>
           </div>
@@ -603,36 +605,74 @@ export default function LoginContent() {
       </div>
 
       <div
-        className="w-full md:w-[60%] flex flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center"
-        style={{ backgroundImage: "url('/texagon_sva.svg')" }}>
+        className={`w-full md:w-[60%] flex flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center ${
+          brand.id === "nimet"
+            ? "bg-gradient-to-br from-[#071a47] via-[#006B3E] to-[#04331e]"
+            : ""
+        }`}
+        style={brand.id === "techxagon" ? { backgroundImage: "url('/texagon_sva.svg')" } : {}}>
         <div className="text-center z-10 px-4">
-          <h2 className="text-5xl font-bold text-white mb-4">
-            <AnimatedWords
-              text="Africa's Foremost"
-              startDelay={0}
-              splitType="letter"
-              wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
-              animate={shouldAnimate}
-            />
-          </h2>
-          <h2 className="text-5xl font-bold bg-gradient-to-r from-[#ff9572] via-[#ff936f] to-[#f4b29c] text-transparent bg-clip-text hover:opacity-90 mb-4 [text-shadow:1px_1px_0_#c2410c,2px_2px_0_#c2410c,3px_3px_0_#c2410c,4px_4px_0_#c2410c,5px_5px_0_#c2410c,6px_6px_1px_rgba(0,0,0,0.2)]">
-            <AnimatedWords
-              text="4IR"
-              startDelay={3.4}
-              splitType="letter"
-              wordStyle={{ fontSize: "8rem", fontWeight: "thin" }}
-              animate={shouldAnimate}
-            />
-          </h2>
-          <h2 className="text-5xl font-bold text-white">
-            <AnimatedWords
-              text=" Curriculum"
-              startDelay={4}
-              splitType="letter"
-              wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
-              animate={shouldAnimate}
-            />
-          </h2>
+          {brand.id === "nimet" ? (
+            <>
+              <h2 className="text-4xl font-bold text-white mb-4">
+                <AnimatedWords
+                  text="Nigerian Meteorological Agency"
+                  startDelay={0}
+                  splitType="word"
+                  wordStyle={{ fontSize: "3.5rem", fontWeight: "bold" }}
+                  animate={shouldAnimate}
+                />
+              </h2>
+              <h2 className="text-5xl font-bold bg-gradient-to-r from-[#FFC931] via-[#FFE082] to-[#FFD54F] text-transparent bg-clip-text hover:opacity-90 mb-4 [text-shadow:1px_1px_0_#b45309,2px_2px_0_#b45309,3px_3px_0_#b45309]">
+                <AnimatedWords
+                  text="NiMet Learning Portal"
+                  startDelay={1.5}
+                  splitType="word"
+                  wordStyle={{ fontSize: "4.5rem", fontWeight: "bold" }}
+                  animate={shouldAnimate}
+                />
+              </h2>
+              <h2 className="text-2xl font-medium text-emerald-100 mt-2">
+                <AnimatedWords
+                  text="Authoritative Weather & Climate Services"
+                  startDelay={2.5}
+                  splitType="word"
+                  wordStyle={{ fontSize: "2rem", fontWeight: "medium" }}
+                  animate={shouldAnimate}
+                />
+              </h2>
+            </>
+          ) : (
+            <>
+              <h2 className="text-5xl font-bold text-white mb-4">
+                <AnimatedWords
+                  text="Africa's Foremost"
+                  startDelay={0}
+                  splitType="letter"
+                  wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
+                  animate={shouldAnimate}
+                />
+              </h2>
+              <h2 className="text-5xl font-bold bg-gradient-to-r from-[#ff9572] via-[#ff936f] to-[#f4b29c] text-transparent bg-clip-text hover:opacity-90 mb-4 [text-shadow:1px_1px_0_#c2410c,2px_2px_0_#c2410c,3px_3px_0_#c2410c,4px_4px_0_#c2410c,5px_5px_0_#c2410c,6px_6px_1px_rgba(0,0,0,0.2)]">
+                <AnimatedWords
+                  text="4IR"
+                  startDelay={3.4}
+                  splitType="letter"
+                  wordStyle={{ fontSize: "8rem", fontWeight: "thin" }}
+                  animate={shouldAnimate}
+                />
+              </h2>
+              <h2 className="text-5xl font-bold text-white">
+                <AnimatedWords
+                  text=" Curriculum"
+                  startDelay={4}
+                  splitType="letter"
+                  wordStyle={{ fontSize: "5rem", fontWeight: "bold" }}
+                  animate={shouldAnimate}
+                />
+              </h2>
+            </>
+          )}
         </div>
       </div>
 

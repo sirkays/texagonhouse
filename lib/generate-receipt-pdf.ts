@@ -1,5 +1,5 @@
-// lib/generate-receipt-pdf.ts
 import { format } from "date-fns";
+import { getBrandConfig } from "@/lib/brand";
 
 export interface PaymentReceipt {
   id: string;
@@ -282,9 +282,9 @@ export function generateReceiptPDF(receipt: PaymentReceipt): void {
 
     <div class="topbar">
       <div class="brand">
-        <img src="/texagon-logo.png" alt="Logo" />
+        <img src="${getBrandConfig().logo}" alt="Logo" />
         <div class="name">
-          <strong>Techxagon Academy</strong>
+          <strong>${getBrandConfig().fullName}</strong>
           <span>Billing / Receipts</span>
         </div>
       </div>

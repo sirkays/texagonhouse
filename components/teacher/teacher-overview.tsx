@@ -28,6 +28,7 @@ import { useSession } from "next-auth/react";
 import { Spinner } from "@/components/ui/spinner";
 import { useOnboarding } from "@/components/teacher/teacher-onboarding";
 import { cn } from "@/lib/utils";
+import { useBrand } from "@/hooks/use-brand";
 
 interface Stat {
   title: string;
@@ -72,6 +73,7 @@ interface TeacherOverviewData {
 }
 
 export function TeacherOverview() {
+  const brand = useBrand();
   const { data: session, status } = useSession();
   const [data, setData] = useState<TeacherOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -225,14 +227,14 @@ export function TeacherOverview() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto p-1 sm:p-2">
       {/* Premium Gradient Hero Header */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl dark:shadow-none">
-        <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+      <div className={`relative overflow-hidden rounded-2xl ${brand.isNiMet ? "bg-gradient-to-r from-[#071a47] via-[#092552] to-[#006B3E]" : "bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47]"} p-6 sm:p-8 text-white shadow-xl dark:shadow-none`}>
+        <div className={`absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full ${brand.isNiMet ? "bg-[#FFC931]/15" : "bg-[#EF7B55]/15"} blur-3xl`} />
         <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
         
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
-            <Badge className="bg-[#EF7B55]/20 text-[#ffae91] border border-[#EF7B55]/30 hover:bg-[#EF7B55]/30 px-3 py-1 font-semibold text-xs tracking-wide">
-              Academy Educator Portal
+            <Badge className={`${brand.isNiMet ? "bg-[#FFC931]/20 text-[#FFC931] border-[#FFC931]/30 hover:bg-[#FFC931]/30" : "bg-[#EF7B55]/20 text-[#ffae91] border-[#EF7B55]/30 hover:bg-[#EF7B55]/30"} border px-3 py-1 font-semibold text-xs tracking-wide`}>
+              {brand.isNiMet ? "NiMet Educator Portal" : "Academy Educator Portal"}
             </Badge>
             <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-orange-100 bg-clip-text text-transparent">
               Teacher Dashboard Overview
@@ -247,7 +249,7 @@ export function TeacherOverview() {
             title="Replay the dashboard tour"
             className="backdrop-blur-md bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl shadow-md shrink-0 flex items-center gap-2 self-start sm:self-center px-4 py-2.5 transition-all duration-300 text-xs sm:text-sm"
           >
-            <Sparkles className="h-4 w-4 text-[#ffae91] animate-pulse" />
+            <Sparkles className={`h-4 w-4 ${brand.isNiMet ? "text-[#FFC931]" : "text-[#ffae91]"} animate-pulse`} />
             <span>Take the Tour</span>
           </button>
         </div>

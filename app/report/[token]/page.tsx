@@ -9,6 +9,7 @@ import {
   Eye, EyeOff, User, Mail, Lock, ArrowRight,
   Shield, FileText, CheckCircle, Loader2, AlertCircle,
 } from "lucide-react";
+import { useBrand } from "@/hooks/use-brand";
 
 const DJANGO_BASE = process.env.NEXT_PUBLIC_DJANGO_BASE_URL || "";
 
@@ -19,6 +20,7 @@ type OrgInfo = {
 };
 
 export default function ReportGatewayPage({ params }: { params: Promise<{ token: string }> }) {
+  const brand = useBrand();
   const { token } = use(params);
   const [phase, setPhase] = useState<"loading" | "verify" | "setup" | "signing_in">("loading");
   const [orgInfo, setOrgInfo] = useState<OrgInfo | null>(null);
@@ -148,7 +150,7 @@ export default function ReportGatewayPage({ params }: { params: Promise<{ token:
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-slate-50 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-16 h-16 mx-auto bg-[#EF7B55]/10 rounded-2xl flex items-center justify-center">
-            <Image src="/texagon-logo.png" alt="Techxagon" width={36} height={36} className="object-contain animate-pulse" />
+            <Image src={brand.logo} alt={brand.name} width={36} height={36} className="object-contain animate-pulse" />
           </div>
           <Loader2 className="w-6 h-6 text-[#EF7B55] animate-spin mx-auto" />
           <p className="text-sm text-slate-500">Loading report...</p>
@@ -185,11 +187,11 @@ export default function ReportGatewayPage({ params }: { params: Promise<{ token:
       <div className="relative z-10 max-w-md mx-auto lg:mx-0">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-            <Image src="/texagon-logo.png" alt="Techxagon" width={30} height={30} className="object-contain brightness-0 invert" />
+            <Image src={brand.logo} alt={brand.name} width={30} height={30} className={`object-contain ${brand.id === "techxagon" ? "brightness-0 invert" : ""}`} />
           </div>
           <div>
-            <span className="text-lg font-bold tracking-wide">TECHXAGON</span>
-            <p className="text-white/70 text-xs font-medium">Academy</p>
+            <span className="text-lg font-bold tracking-wide">{brand.name.toUpperCase()}</span>
+            <p className="text-white/70 text-xs font-medium">{brand.id === "nimet" ? "Portal" : "Academy"}</p>
           </div>
         </div>
         {orgInfo?.organization_logo && (
@@ -239,8 +241,8 @@ export default function ReportGatewayPage({ params }: { params: Promise<{ token:
           <div className="w-full max-w-md space-y-6">
             <div className="lg:hidden text-center mb-4">
               <div className="flex items-center justify-center gap-2">
-                <Image src="/texagon-logo.png" alt="Techxagon" width={28} height={28} className="object-contain" />
-                <span className="text-lg font-bold text-slate-800">TECHXAGON</span>
+                <Image src={brand.logo} alt={brand.name} width={28} height={28} className="object-contain" />
+                <span className="text-lg font-bold text-slate-800">{brand.name.toUpperCase()}</span>
               </div>
             </div>
             <div>
@@ -301,8 +303,8 @@ export default function ReportGatewayPage({ params }: { params: Promise<{ token:
             </div>
             <div className="text-center pt-2">
               <div className="flex items-center justify-center gap-2 mb-1">
-                <Image src="/texagon-logo.png" alt="Techxagon" width={14} height={14} className="object-contain opacity-50" />
-                <span className="text-xs text-slate-400">Powered by Techxagon</span>
+                <Image src={brand.logo} alt={brand.name} width={14} height={14} className="object-contain opacity-50" />
+                <span className="text-xs text-slate-400">Powered by {brand.name}</span>
               </div>
             </div>
           </div>
@@ -329,8 +331,8 @@ export default function ReportGatewayPage({ params }: { params: Promise<{ token:
           <div className="w-full max-w-md space-y-6">
             <div className="lg:hidden text-center mb-4">
               <div className="flex items-center justify-center gap-2">
-                <Image src="/texagon-logo.png" alt="Techxagon" width={28} height={28} className="object-contain" />
-                <span className="text-lg font-bold text-slate-800">TECHXAGON</span>
+                <Image src={brand.logo} alt={brand.name} width={28} height={28} className="object-contain" />
+                <span className="text-lg font-bold text-slate-800">{brand.name.toUpperCase()}</span>
               </div>
             </div>
             <div>
@@ -392,8 +394,8 @@ export default function ReportGatewayPage({ params }: { params: Promise<{ token:
             </div>
             <div className="text-center pt-2">
               <div className="flex items-center justify-center gap-2">
-                <Image src="/texagon-logo.png" alt="Techxagon" width={14} height={14} className="object-contain opacity-50" />
-                <span className="text-xs text-slate-400">Powered by Techxagon</span>
+                <Image src={brand.logo} alt={brand.name} width={14} height={14} className="object-contain opacity-50" />
+                <span className="text-xs text-slate-400">Powered by {brand.name}</span>
               </div>
             </div>
           </div>

@@ -120,7 +120,7 @@ const TOUR_STEPS: Step[] = [
     disableBeacon: true,
     title: "Welcome to Your Teaching Hub!",
     content:
-      "Techxagon gives you a powerful suite of tools to create engaging lessons, manage your students, and track their growth — all in one place.",
+      "Our platform gives you a powerful suite of tools to create engaging lessons, manage your students, and track their growth — all in one place.",
   },
   {
     target: "#tour-stats",

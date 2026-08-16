@@ -6,6 +6,7 @@ import { StreamVideo, StreamVideoClient, StreamCall, StreamTheme } from "@stream
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Spinner } from "../ui/spinner";
+import { useBrand } from "@/hooks/use-brand";
 import MeetingSetup from "./MeetingSetup";
 import MeetingRoom from "./MeetingRoom";
 import LivestreamViewer from "./LivestreamViewer";
@@ -20,6 +21,7 @@ interface GuestJoinPageProps {
 }
 
 const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJoinPageProps) => {
+  const brand = useBrand();
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [isJoining, setIsJoining] = useState(false);
@@ -201,7 +203,7 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
           <div className="text-center space-y-2">
             <span className="inline-flex items-center gap-1.5 text-[#EF7B55] text-xs font-bold uppercase tracking-widest">
               <span className="w-1.5 h-1.5 rounded-full bg-[#EF7B55] animate-pulse" />
-              Techxagon Live
+              {brand.name} Live
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
               Join as Guest
@@ -274,7 +276,7 @@ const GuestJoinPage = ({ meetingId, meetingTitle, callType = "default" }: GuestJ
           {/* Footer */}
           <div className="flex items-center justify-center gap-2 text-xs text-zinc-500">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>End-to-end encrypted • HD Quality • Techxagon Live</span>
+            <span>End-to-end encrypted • HD Quality • {brand.name} Live</span>
           </div>
         </div>
 

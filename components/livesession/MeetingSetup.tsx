@@ -25,12 +25,14 @@ import {
   ArrowRight,
   User,
 } from "lucide-react";
+import { useBrand } from "@/hooks/use-brand";
 
 const MeetingSetup = ({
   setIsSetupComplete,
 }: {
   setIsSetupComplete: (value: boolean) => void;
 }) => {
+  const brand = useBrand();
   const { data: session, status } = useSession();
   const [isMicCamToggled, setIsMicCamToggled] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
@@ -272,7 +274,7 @@ const MeetingSetup = ({
           <div className="flex flex-col gap-1">
             <span className="inline-flex items-center gap-1.5 text-[#EF7B55] text-xs font-bold uppercase tracking-widest">
               <span className="w-1.5 h-1.5 rounded-full bg-[#EF7B55] animate-pulse" />
-              Techxagon Live
+              {brand.name} Live
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">
               Ready to join?
@@ -408,7 +410,7 @@ const MeetingSetup = ({
           {/* Security note */}
           <div className="flex items-center gap-2 text-xs text-zinc-500">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span>End-to-end encrypted &bull; HD Quality &bull; Techxagon Live</span>
+            <span>End-to-end encrypted &bull; HD Quality &bull; {brand.name} Live</span>
           </div>
         </div>
       </div>

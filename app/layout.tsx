@@ -9,14 +9,28 @@ import {SessionProvider} from "next-auth/react";
 import type {Metadata} from "next";
 import "./globals.css";
 import {NotificationProvider} from "@/components/NotificationProvider";
+import {getBrandConfig} from "@/lib/brand";
+
+const currentBrand = getBrandConfig();
 
 export const metadata: Metadata = {
-  title: "Techxagon Educational Platform",
-  description:
-    "A video conferencing and educational platform to help students learn and teachers teach.",
-  generator: "Epic House",
-  // Remove or comment out the icons line below
-  icons: "/favicon.ico",
+  title: {
+    default: currentBrand.metaTitle,
+    template: `%s | ${currentBrand.fullName}`,
+  },
+  description: currentBrand.metaDescription,
+  generator: currentBrand.fullName,
+  icons: {
+    icon: currentBrand.favicon,
+    shortcut: currentBrand.favicon,
+    apple: currentBrand.favicon,
+  },
+  openGraph: {
+    title: currentBrand.metaTitle,
+    description: currentBrand.metaDescription,
+    siteName: currentBrand.fullName,
+    images: [{ url: currentBrand.logo }],
+  },
 };
 
 export default function RootLayout({
@@ -24,11 +38,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const activeBrand = getBrandConfig();
+
   return (
-    <html lang="en">
+    <html lang="en" data-brand={activeBrand.id}>
       <Providers>
         <NotificationProvider>
-          <body>
+          <body data-brand={activeBrand.id}>
             {children}
             <SonnerToaster />
             <ShadcnToaster />
@@ -38,3 +54,4 @@ export default function RootLayout({
     </html>
   );
 }
+

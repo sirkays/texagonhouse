@@ -5,8 +5,10 @@ import {usePathname} from "next/navigation";
 import {navLinks} from "@/constants";
 import {cn} from "@/lib/utils";
 import {useState} from "react";
+import {useBrand} from "@/hooks/use-brand";
 
 const NavBar = () => {
+  const brand = useBrand();
   const pathname = usePathname();
   const [headerStyle, setHeaderStyle] = useState<"icons" | "text" | "both">(
     "both",
@@ -19,13 +21,20 @@ const NavBar = () => {
   return (
     <>
       {/* Desktop / Tablet Top Navbar */}
-      <nav className="hidden sm:flex justify-between items-center fixed z-50 w-full py-2 sm:py-6 px-6 sm:px-10 backdrop-blur-xl bg-[#ef7b55]/20 border-b border-[#ef7b55]/10 shadow-md">
+      <nav className={`hidden sm:flex justify-between items-center fixed z-50 w-full py-2 sm:py-4 px-6 sm:px-10 backdrop-blur-xl ${brand.isNiMet ? "bg-[#006B3E]/10 border-b border-[#006B3E]/15" : "bg-[#ef7b55]/20 border-b border-[#ef7b55]/10"} shadow-md`}>
         {/* Logo */}
         <Link
           href="/main/home"
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <Image
+            src={brand.logo}
+            alt={brand.logoAlt}
+            width={brand.id === "nimet" ? 110 : 36}
+            height={36}
+            className="object-contain"
+          />
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            TECHXAGON
+            {brand.name.toUpperCase()}
           </h1>
         </Link>
 
@@ -41,11 +50,11 @@ const NavBar = () => {
                 key={item.label}
                 className={cn(
                   "flex text-gray-700 text-base font-medium transition-colors gap-2",
-                  isActive && "text-[#ef7b55] font-semibold",
+                  isActive && (brand.isNiMet ? "text-[#006B3E] font-semibold" : "text-[#ef7b55] font-semibold"),
                 )}>
                 {headerStyle !== "text" && (
                   <Icon
-                    className={cn("w-6 h-6", isActive && "text-[#ef7b55]")}
+                    className={cn("w-6 h-6", isActive && (brand.isNiMet ? "text-[#006B3E]" : "text-[#ef7b55]"))}
                   />
                 )}
                 {headerStyle !== "icons" && (
@@ -65,7 +74,7 @@ const NavBar = () => {
               className={cn(
                 "px-3 py-1 text-sm font-medium transition-colors",
                 headerStyle === "both"
-                  ? "bg-[#ef7b55] text-white"
+                  ? (brand.isNiMet ? "bg-[#006B3E] text-white" : "bg-[#ef7b55] text-white")
                   : "bg-transparent text-gray-700 hover:bg-white/50",
               )}>
               Icons & Text
@@ -76,7 +85,7 @@ const NavBar = () => {
               className={cn(
                 "px-3 py-1 text-sm font-medium transition-colors",
                 headerStyle === "icons"
-                  ? "bg-[#ef7b55] text-white"
+                  ? (brand.isNiMet ? "bg-[#006B3E] text-white" : "bg-[#ef7b55] text-white")
                   : "bg-transparent text-gray-700 hover:bg-white/50",
               )}>
               Icons
@@ -87,7 +96,7 @@ const NavBar = () => {
               className={cn(
                 "px-3 py-1 text-sm font-medium transition-colors",
                 headerStyle === "text"
-                  ? "bg-[#ef7b55] text-white"
+                  ? (brand.isNiMet ? "bg-[#006B3E] text-white" : "bg-[#ef7b55] text-white")
                   : "bg-transparent text-gray-700 hover:bg-white/50",
               )}>
               Text
@@ -110,7 +119,7 @@ const NavBar = () => {
       </nav>
 
       {/* Mobile Bottom Nav */}
-      <nav className="sm:hidden fixed bottom-0 left-0 w-full backdrop-blur-xl bg-[#ef7b55]/20 border-t border-[#ef7b55]/10 shadow-inner z-50">
+      <nav className={`sm:hidden fixed bottom-0 left-0 w-full backdrop-blur-xl ${brand.isNiMet ? "bg-[#006B3E]/10 border-t border-[#006B3E]/15" : "bg-[#ef7b55]/20 border-t border-[#ef7b55]/10"} shadow-inner z-50`}>
         <div className="flex justify-around items-center h-16">
           {navLinks.map((item) => {
             const isActive = pathname === item.route;
@@ -122,11 +131,11 @@ const NavBar = () => {
                 key={item.label}
                 className={cn(
                   "flex flex-col items-center justify-center text-xs text-gray-600 transition-colors",
-                  isActive && "text-[#ef7b55] font-semibold",
+                  isActive && (brand.isNiMet ? "text-[#006B3E] font-semibold" : "text-[#ef7b55] font-semibold"),
                 )}>
                 {headerStyle !== "text" && (
                   <Icon
-                    className={cn("w-6 h-6", isActive && "text-[#ef7b55]")}
+                    className={cn("w-6 h-6", isActive && (brand.isNiMet ? "text-[#006B3E]" : "text-[#ef7b55]"))}
                   />
                 )}
                 {headerStyle !== "icons" && (

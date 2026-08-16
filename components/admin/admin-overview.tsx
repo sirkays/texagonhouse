@@ -20,8 +20,10 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react";
+import {useBrand} from "@/hooks/use-brand";
 
 export function AdminOverview() {
+  const brand = useBrand();
   const systemStats = [
     {
       title: "Total Schools",
@@ -161,7 +163,7 @@ export function AdminOverview() {
           System Administration
         </h1>
         <p className="text-muted-foreground text-xs xs:text-sm sm:text-base">
-          Welcome to TECHXAGON Admin Portal. Monitor and manage the entire
+          Welcome to {brand.name.toUpperCase()} Admin Portal. Monitor and manage the entire
           platform.
         </p>
       </div>

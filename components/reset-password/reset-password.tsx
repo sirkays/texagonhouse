@@ -8,8 +8,10 @@ import {Input} from "@/components/ui/input";
 import {Spinner} from "@/components/ui/spinner";
 import Link from "next/link";
 import Image from "next/image";
+import {useBrand} from "@/hooks/use-brand";
 
 export default function ResetPasswordContent() {
+  const brand = useBrand();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [newPassword, setNewPassword] = useState("");
@@ -104,19 +106,19 @@ export default function ResetPasswordContent() {
           <div className="max-w-sm mx-auto w-full">
             <div className="flex items-center mb-10">
               <Image
-                src="/logo.png"
-                alt="TechXagon Logo"
-                width={64}
-                height={64}
-                className="rounded-lg mr-4"
+                src={brand.logo}
+                alt={brand.logoAlt}
+                width={brand.id === "nimet" ? 140 : 64}
+                height={brand.id === "nimet" ? 54 : 64}
+                className="rounded-lg mr-4 object-contain"
               />
               <div className="flex flex-col">
                 <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">
-                  TECHXAGON ACADEMY
+                  {brand.fullName.toUpperCase()}
                 </h6>
                 <hr className="w-full my-2 border-gray-900" />
-                <p className="text-gray-600 italic text-lg">
-                  Readying the Future
+                <p className="text-gray-600 italic text-sm sm:text-base">
+                  {brand.tagline}
                 </p>
               </div>
             </div>
@@ -153,8 +155,10 @@ export default function ResetPasswordContent() {
         </div>
 
         <div
-          className="w-full md:w-[60%] flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center"
-          style={{backgroundImage: "url('/texagon_sva.svg')"}}>
+          className={`w-full md:w-[60%] flex-col justify-center items-center relative overflow-hidden mt-6 md:mt-0 md:p-4 hidden sm:flex bg-cover bg-center ${
+            brand.id === "nimet" ? "bg-gradient-to-br from-[#071a47] via-[#006B3E] to-[#04331e]" : ""
+          }`}
+          style={brand.id === "techxagon" ? {backgroundImage: "url('/texagon_sva.svg')"} : {}}>
           <div className="text-center z-10 px-4" />
         </div>
       </div>
@@ -169,19 +173,19 @@ export default function ResetPasswordContent() {
         <div className="max-w-sm mx-auto w-full">
           <div className="flex items-center mb-10">
             <Image
-              src="/logo.png"
-              alt="TechXagon Logo"
-              width={64}
-              height={64}
-              className="rounded-lg mr-4"
+              src={brand.logo}
+              alt={brand.logoAlt}
+              width={brand.id === "nimet" ? 140 : 64}
+              height={brand.id === "nimet" ? 54 : 64}
+              className="rounded-lg mr-4 object-contain"
             />
             <div className="flex flex-col">
               <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">
-                TECHXAGON ACADEMY
+                {brand.fullName.toUpperCase()}
               </h6>
               <hr className="w-full my-2 border-gray-900" />
-              <p className="text-gray-600 italic text-lg">
-                Readying the Future
+              <p className="text-gray-600 italic text-sm sm:text-base">
+                {brand.tagline}
               </p>
             </div>
           </div>

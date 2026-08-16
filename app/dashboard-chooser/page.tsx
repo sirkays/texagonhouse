@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { GraduationCap, ShieldCheck, BookOpen } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import Image from "next/image";
+import { useBrand } from "@/hooks/use-brand";
 
 export default function DashboardChooserPage() {
+  const brand = useBrand();
   const { data: session, status } = useSession();
   const router = useRouter();
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
@@ -112,14 +114,14 @@ export default function DashboardChooserPage() {
         >
           <div className="flex items-center justify-center gap-3 mb-6">
             <Image
-              src="/logo.png"
-              alt="TechXagon Logo"
-              width={52}
+              src={brand.logo}
+              alt={brand.logoAlt}
+              width={brand.id === "nimet" ? 120 : 52}
               height={52}
-              className="rounded-xl shadow-md"
+              className={`object-contain ${brand.id === "techxagon" ? "rounded-xl shadow-md" : ""}`}
             />
             <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap tracking-tight">
-              TECHXAGON ACADEMY
+              {brand.fullName.toUpperCase()}
             </h6>
           </div>
 

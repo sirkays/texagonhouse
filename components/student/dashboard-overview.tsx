@@ -29,6 +29,7 @@ import {signOut, useSession} from "next-auth/react";
 import {useRouter} from "next/navigation";
 import {Spinner} from "@/components/ui/spinner";
 import {useStudentTheme} from "@/components/student/useStudentTheme";
+import {useBrand} from "@/hooks/use-brand";
 
 interface LiveSession {
   id: string;
@@ -45,6 +46,7 @@ interface Test {
 }
 
 export function DashboardOverview() {
+  const brand = useBrand();
   const {data: session, status} = useSession();
   const {theme} = useStudentTheme();
   const isAero = theme === "aero-premium";
@@ -697,8 +699,8 @@ export function DashboardOverview() {
     <div className="space-y-6 px-3 sm:px-4 md:px-6">
       {/* Header */}
       {isAero ? (
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47] p-6 sm:p-8 text-white shadow-xl">
-          <div className="absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full bg-[#EF7B55]/15 blur-3xl" />
+        <div className={`relative overflow-hidden rounded-2xl ${brand.isNiMet ? "bg-gradient-to-r from-[#071a47] via-[#092552] to-[#006B3E]" : "bg-gradient-to-r from-slate-900 via-slate-800 to-[#e26d47]"} p-6 sm:p-8 text-white shadow-xl`}>
+          <div className={`absolute right-0 top-0 h-64 w-64 -translate-y-12 translate-x-12 rounded-full ${brand.isNiMet ? "bg-[#FFC931]/15" : "bg-[#EF7B55]/15"} blur-3xl`} />
           <div className="absolute left-1/3 bottom-0 h-40 w-40 translate-y-12 rounded-full bg-indigo-500/15 blur-3xl" />
           
           <div className="relative z-10 space-y-2">

@@ -17,6 +17,7 @@ import DateAndTime from "./DateAndTime";
 import Image from "next/image";
 import {Spinner} from "../ui/spinner";
 import {PlusCircle, Users, CalendarDays, Trash2, Radio, Monitor, ArrowLeft, Globe, Lock} from "lucide-react";
+import {useBrand} from "@/hooks/use-brand";
 
 interface Course {
   id: number | string;
@@ -78,6 +79,7 @@ const MenuItemCard = ({title, Icon, color}: MenuItemCardProps) => {
 };
 
 const MainMenu = () => {
+  const brand = useBrand();
   const {data: session, status} = useSession();
   const router = useRouter();
   const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
@@ -454,8 +456,8 @@ const MainMenu = () => {
             ) : nearestUpcomingMeeting ? (
               <>
                 <h2
-                  className="w-full max-w-[300px] sm:max-w-[273px] rounded-2xl p-3 sm:p-4 text-center text-sm sm:text-base font-light
-                  bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800">
+                  className={`w-full max-w-[300px] sm:max-w-[273px] rounded-2xl p-3 sm:p-4 text-center text-sm sm:text-base font-light
+                  ${brand.isNiMet ? "bg-[#006B3E]/10 border border-[#006B3E]/20 text-gray-800" : "bg-[#f7b55]/15 border border-[#f7b55]/30 text-gray-800"}`}>
                   Next Meeting: {nearestUpcomingMeeting.title} at {formattedDate}
                 </h2>
 
@@ -464,13 +466,13 @@ const MainMenu = () => {
                     (isTeacher ? (
                       <a
                         href="/main/home/upcoming"
-                        className="text-[#f7b55] hover:text-[#e0a94d] text-sm sm:text-base font-medium">
+                        className={`${brand.isNiMet ? "text-[#006B3E] hover:text-[#005230]" : "text-[#f7b55] hover:text-[#e0a94d]"} text-sm sm:text-base font-medium`}>
                         View More
                       </a>
                     ) : (
                       <a
                         href="/main/home/upcoming"
-                        className="text-[#f7b55] hover:text-[#e0a94d] text-sm sm:text-base font-medium">
+                        className={`${brand.isNiMet ? "text-[#006B3E] hover:text-[#005230]" : "text-[#f7b55] hover:text-[#e0a94d]"} text-sm sm:text-base font-medium`}>
                         Join Meeting
                       </a>
                     ))}
@@ -505,7 +507,7 @@ const MainMenu = () => {
               <MenuItemCard
                 title="New Meeting"
                 Icon={PlusCircle}
-                color="#EF7B55"
+                color={brand.colors.primary}
               />
             </div>
           )}
@@ -535,7 +537,7 @@ const MainMenu = () => {
         <div className="px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto animate-fade-in">
           <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
             {/* Header Banner */}
-            <div className="bg-gradient-to-r from-[#EF7B55] to-[#f98a66] p-6 sm:p-8 text-white">
+            <div className={`p-6 sm:p-8 text-white ${brand.isNiMet ? "bg-gradient-to-r from-[#006B3E] to-[#071a47]" : "bg-gradient-to-r from-[#EF7B55] to-[#f98a66]"}`}>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => { setActiveView(null); setValues(initialValues); }}
@@ -728,9 +730,11 @@ const MainMenu = () => {
             {/* Action Footer */}
             <div className="p-5 sm:p-6 border-t border-slate-100 bg-slate-50/50">
               <Button
-                className={`w-full bg-gradient-to-r from-[#EF7B55] to-[#f98a66] hover:from-[#e0663f] hover:to-[#EF7B55] text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
-                  isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""
-                }`}
+                className={`w-full text-white font-bold py-3.5 px-6 rounded-xl shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer ${
+                  brand.isNiMet
+                    ? "bg-gradient-to-r from-[#006B3E] to-[#005230] hover:from-[#005230] hover:to-[#006B3E] shadow-[#006B3E]/20 hover:shadow-[#006B3E]/35"
+                    : "bg-gradient-to-r from-[#EF7B55] to-[#f98a66] hover:from-[#e0663f] hover:to-[#EF7B55] shadow-[#EF7B55]/20 hover:shadow-[#EF7B55]/35"
+                } ${isCreatingMeeting ? "opacity-60 cursor-not-allowed" : ""}`}
                 onClick={() => {
                   setIsCreatingMeeting(true);
                   setMeetingState("Instant");

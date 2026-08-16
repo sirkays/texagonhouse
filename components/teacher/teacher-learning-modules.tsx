@@ -1973,28 +1973,28 @@ export function TeacherLearningModules() {
         <TabsList className="bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/40 dark:border-slate-800/40 p-1.5 rounded-2xl backdrop-blur-md flex flex-row items-center justify-start w-full overflow-x-auto no-scrollbar gap-2 mb-8">
           <TabsTrigger
             value="create"
-            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
           >
             <PlusCircle className="h-4 w-4 shrink-0" />
             Create Module
           </TabsTrigger>
           <TabsTrigger
             value="manage"
-            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
           >
             <ClipboardList className="h-4 w-4 shrink-0" />
             Manage Modules
           </TabsTrigger>
           <TabsTrigger
             value="analytics"
-            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
           >
             <BarChart3 className="h-4 w-4 shrink-0" />
             Module Analytics
           </TabsTrigger>
           <TabsTrigger
             value="course-access"
-            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+            className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
           >
             <Key className="h-4 w-4 shrink-0" />
             Course Access

@@ -1,5 +1,5 @@
-// lib/generate-pdf.ts
 import { format } from "date-fns";
+import { getBrandConfig } from "@/lib/brand";
 
 type InvoiceStatus = "open" | "paid" | "void" | "uncollectible" | "active";
 type InvoiceType = "tutor" | "subscription";
@@ -347,9 +347,9 @@ export function generateInvoicePDF(invoice: Invoice): void {
 
     <div class="topbar">
       <div class="brand">
-        <img src="/logo.png" alt="Logo" />
+        <img src="${getBrandConfig().logo}" alt="Logo" />
         <div class="name">
-          <strong>Techxagon</strong>
+          <strong>${getBrandConfig().fullName}</strong>
           <span>Billing / Invoicing</span>
         </div>
       </div>

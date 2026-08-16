@@ -10,20 +10,6 @@
   }
 }
 
-@theme {
-  --animate-fade-in: fade-in-scale 0.3s ease-out;
-  @keyframes fade-in-scale {
-    0% {
-      opacity: 0;
-      transform: scale(0.95);
-    }
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-}
-
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -60,6 +46,127 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  /* NiMet Brand Theme Overrides when data-brand="nimet" */
+  :root[data-brand="nimet"],
+  html[data-brand="nimet"],
+  body[data-brand="nimet"],
+  [data-brand="nimet"] {
+    --primary: 155 100% 21%; /* #006B3E NiMet Forest Green */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.5%;
+    --secondary-foreground: 222 82% 15%;
+    --accent: 44 100% 60%; /* #FFC931 NiMet Gold */
+    --accent-foreground: 222 82% 15%;
+    --ring: 155 100% 21%;
+    --border: 155 20% 88%;
+    --sidebar-primary: 155 100% 21%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 155 30% 94%;
+    --sidebar-accent-foreground: 155 100% 21%;
+    --sidebar-ring: 155 100% 21%;
+    --brand-primary: #006B3E;
+    --brand-accent: #FFC931;
+    --brand-dark: #071a47;
+  }
+
+  /* Automatically map Techxagon arbitrary colors to NiMet palette when data-brand="nimet" */
+  [data-brand="nimet"] .bg-\[\#EF7B55\],
+  [data-brand="nimet"] .bg-\[\#ef7b55\],
+  [data-brand="nimet"] .bg-\[\#e26d47\],
+  [data-brand="nimet"] .bg-\[\#E96D47\],
+  [data-brand="nimet"] .bg-\[\#d96a44\],
+  [data-brand="nimet"] .bg-\[\#c85a35\] {
+    background-color: #006B3E !important;
+  }
+
+  [data-brand="nimet"] .bg-\[\#ef7b55\]\/20,
+  [data-brand="nimet"] .bg-\[\#ef7b55\]\/10,
+  [data-brand="nimet"] .bg-\[\#EF7B55\]\/20,
+  [data-brand="nimet"] .bg-\[\#EF7B55\]\/10,
+  [data-brand="nimet"] .bg-\[\#f7b55\]\/15,
+  [data-brand="nimet"] .bg-\[\#EF7B553a\],
+  [data-brand="nimet"] .bg-\[\#F797713a\] {
+    background-color: rgba(0, 107, 62, 0.12) !important;
+  }
+
+  [data-brand="nimet"] .data-\[state\=active\]\:bg-\[\#EF7B55\][data-state="active"],
+  [data-brand="nimet"] [data-state="active"].data-\[state\=active\]\:bg-\[\#EF7B55\],
+  [data-brand="nimet"] .data-\[state\=active\]\:bg-\[\#ef7b55\][data-state="active"],
+  [data-brand="nimet"] [data-state="active"].data-\[state\=active\]\:bg-\[\#ef7b55\] {
+    background-color: #006B3E !important;
+    color: #ffffff !important;
+  }
+
+  [data-brand="nimet"] .text-\[\#EF7B55\],
+  [data-brand="nimet"] .text-\[\#ef7b55\],
+  [data-brand="nimet"] .text-\[\#f7b55\],
+  [data-brand="nimet"] .text-\[\#e26d47\],
+  [data-brand="nimet"] .text-\[\#E96D47\] {
+    color: #006B3E !important;
+  }
+
+  [data-brand="nimet"] .text-\[\#ffae91\],
+  [data-brand="nimet"] .text-\[\#F79771\] {
+    color: #FFC931 !important;
+  }
+
+  [data-brand="nimet"] .border-\[\#EF7B55\],
+  [data-brand="nimet"] .border-\[\#ef7b55\] {
+    border-color: #006B3E !important;
+  }
+
+  [data-brand="nimet"] .border-\[\#ef7b55\]\/10,
+  [data-brand="nimet"] .border-\[\#ef7b55\]\/20,
+  [data-brand="nimet"] .border-\[\#f7b55\]\/30,
+  [data-brand="nimet"] .border-\[\#EF7B553a\],
+  [data-brand="nimet"] .border-\[\#EF7B55\/10\],
+  [data-brand="nimet"] .border-\[\#EF7B55\/20\],
+  [data-brand="nimet"] .border-\[\#EF7B55\/30\] {
+    border-color: rgba(0, 107, 62, 0.2) !important;
+  }
+
+  [data-brand="nimet"] .from-\[\#EF7B55\],
+  [data-brand="nimet"] .from-\[\#ef7b55\] {
+    --tw-gradient-from: #006B3E var(--tw-gradient-from-position) !important;
+    --tw-gradient-to: rgb(0 107 62 / 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+  }
+
+  [data-brand="nimet"] .to-\[\#EF7B55\],
+  [data-brand="nimet"] .to-\[\#ef7b55\],
+  [data-brand="nimet"] .to-\[\#e26d47\],
+  [data-brand="nimet"] .to-\[\#E96D47\] {
+    --tw-gradient-to: #006B3E var(--tw-gradient-to-position) !important;
+  }
+
+  [data-brand="nimet"] .via-\[\#EF7B55\],
+  [data-brand="nimet"] .via-\[\#ef7b55\],
+  [data-brand="nimet"] .via-\[\#F79771\],
+  [data-brand="nimet"] .via-\[\#E96D47\],
+  [data-brand="nimet"] .via-\[\#F797713a\] {
+    --tw-gradient-to: rgb(0 107 62 / 0) var(--tw-gradient-to-position) !important;
+    --tw-gradient-stops: var(--tw-gradient-from), #005230 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  }
+
+  [data-brand="nimet"] .hover\:bg-\[\#EF7B55\]:hover,
+  [data-brand="nimet"] .hover\:bg-\[\#ef7b55\]:hover,
+  [data-brand="nimet"] .hover\:bg-\[\#e0663f\]:hover,
+  [data-brand="nimet"] .hover\:bg-\[\#d96a44\]:hover,
+  [data-brand="nimet"] .hover\:bg-\[\#F79771\]:hover {
+    background-color: #005230 !important;
+  }
+
+  [data-brand="nimet"] .hover\:bg-\[\#F797713a\]:hover {
+    background-color: rgba(0, 107, 62, 0.12) !important;
+  }
+
+  [data-brand="nimet"] header#teacher-layout-header,
+  [data-brand="nimet"] header#student-layout-header {
+    background: rgba(0, 107, 62, 0.1) !important;
+    border-bottom: 1px solid rgba(0, 107, 62, 0.15) !important;
+  }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -94,9 +201,17 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
+  .dark[data-brand="nimet"],
+  [data-brand="nimet"] .dark {
+    --primary: 155 75% 38%;
+    --primary-foreground: 0 0% 100%;
+    --accent: 44 100% 55%;
+    --accent-foreground: 0 0% 100%;
+    --ring: 155 75% 38%;
+    --sidebar-primary: 155 75% 38%;
+  }
+
   *:not([class*="str-video"]) {
     @apply border-border outline-ring/50;
   }

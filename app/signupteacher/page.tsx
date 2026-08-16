@@ -7,8 +7,10 @@ import ParentBiodataForm from "@/components/signup/ParentBiodataForm";
 import Image from "next/image";
 import TeacherSignupForm from "@/components/signup/TeacherSignupForm";
 import Link from "next/link";
+import { useBrand } from "@/hooks/use-brand";
 
-export default function ParentSignupPage() {
+export default function TeacherSignupPage() {
+  const brand = useBrand();
   const [step, setStep] = useState<"signup" | "biodata">("signup");
 
   const handleSignupComplete = () => {
@@ -19,8 +21,10 @@ export default function ParentSignupPage() {
     <div className="flex flex-col lg:flex-row h-screen overflow-hidden bg-white">
       {/* Decorative Background Section (Hidden on mobile) */}
       <div
-        className="hidden lg:flex lg:w-[55%] xl:w-[60%] justify-center items-center bg-cover bg-center relative"
-        style={{ backgroundImage: "url('/texagon_sva.svg')" }}>
+        className={`hidden lg:flex lg:w-[55%] xl:w-[60%] justify-center items-center bg-cover bg-center relative ${
+          brand.id === "nimet" ? "bg-gradient-to-br from-[#071a47] via-[#006B3E] to-[#04331e]" : ""
+        }`}
+        style={brand.id === "techxagon" ? { backgroundImage: "url('/texagon_sva.svg')" } : {}}>
         <div className="absolute inset-0 bg-black/10" />
       </div>
 
@@ -30,19 +34,19 @@ export default function ParentSignupPage() {
           {/* Logo/Brand */}
           <div className="flex items-center justify-center mb-8">
             <Image
-              src="/logo.png"
-              alt="TechXagon Logo"
-              width={56}
-              height={56}
-              className="rounded-lg mr-3 sm:mr-4"
+              src={brand.logo}
+              alt={brand.logoAlt}
+              width={brand.id === "nimet" ? 130 : 56}
+              height={brand.id === "nimet" ? 48 : 56}
+              className="rounded-lg mr-3 sm:mr-4 object-contain"
             />
             <div>
               <h6 className="text-gray-900 font-extrabold text-lg sm:text-2xl whitespace-nowrap">
-                TECHXAGON ACADEMY
+                {brand.fullName.toUpperCase()}
               </h6>
               <hr className="w-full my-1 sm:my-2 border-gray-900" />
               <p className="text-gray-600 italic text-sm sm:text-lg">
-                Readying the Future
+                {brand.tagline}
               </p>
             </div>
           </div>

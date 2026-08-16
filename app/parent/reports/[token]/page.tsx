@@ -9,6 +9,7 @@ import {
   Calendar, Video, Award, BookOpen, User, Star, TrendingUp,
   Play, ChevronRight, GraduationCap, Users,
 } from "lucide-react";
+import { useBrand } from "@/hooks/use-brand";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,7 @@ function ChildSwitcher({
 // ─── Inner Component (needs Suspense for useSearchParams) ────────────────────
 
 function ReportDetailContent({ token }: { token: string }) {
+  const brand = useBrand();
   const searchParams = useSearchParams();
 
   const [report, setReport] = useState<ReportData | null>(null);
@@ -181,7 +183,7 @@ function ReportDetailContent({ token }: { token: string }) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-4">
         <div className="w-16 h-16 bg-[#EF7B55]/10 rounded-2xl flex items-center justify-center">
-          <Image src="/texagon-logo.png" alt="Techxagon" width={36} height={36} className="object-contain animate-pulse" />
+          <Image src={brand.logo} alt={brand.name} width={36} height={36} className="object-contain animate-pulse" />
         </div>
         <Loader2 className="w-6 h-6 text-[#EF7B55] animate-spin" />
         <p className="text-sm text-slate-500">Loading report...</p>
@@ -250,7 +252,7 @@ function ReportDetailContent({ token }: { token: string }) {
             <img src={report.organization.logo} alt="" className="h-14 w-14 rounded-xl bg-white/20 p-1 object-contain flex-shrink-0" />
           ) : (
             <div className="h-14 w-14 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-              <Image src="/texagon-logo.png" alt="Techxagon" width={30} height={30} className="object-contain brightness-0 invert" />
+              <Image src={brand.logo} alt={brand.name} width={30} height={30} className={`object-contain ${brand.id === "techxagon" ? "brightness-0 invert" : ""}`} />
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -523,10 +525,10 @@ function ReportDetailContent({ token }: { token: string }) {
       {/* Footer */}
       <div className="text-center py-6 border-t border-slate-100">
         <div className="flex items-center justify-center gap-2.5 mb-2">
-          <Image src="/texagon-logo.png" alt="Techxagon" width={20} height={20} className="object-contain" />
-          <span className="text-sm font-bold text-slate-600">TECHXAGON Academy</span>
+          <Image src={brand.logo} alt={brand.name} width={20} height={20} className="object-contain" />
+          <span className="text-sm font-bold text-slate-600">{brand.fullName}</span>
         </div>
-        <p className="text-[10px] text-slate-400">Powered by Techxagon &copy; {new Date().getFullYear()}</p>
+        <p className="text-[10px] text-slate-400">Powered by {brand.name} &copy; {new Date().getFullYear()}</p>
       </div>
 
       {/* Video Modal */}

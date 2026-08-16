@@ -51,6 +51,7 @@ import {signOut, useSession} from "next-auth/react";
 import {Spinner} from "@/components/ui/spinner";
 import {useNotificationStore} from "../stores/notificationStore";
 import {createContext, useContext, useEffect, useState} from "react";
+import {useBrand} from "@/hooks/use-brand";
 
 const menuItems = [
   {title: "Dashboard", icon: Home, id: "dashboard", path: "/parent"},
@@ -130,9 +131,9 @@ function SidebarMenuContent() {
                   isActive={item.path === "/parent/reports" ? pathname.startsWith("/parent/reports") : pathname === item.path}
                   className={`
                     py-5
-                    hover:bg-[#F797713a]
-                    data-[active=true]:bg-[#EF7B553a]
-                    data-[active=true]:text-slate-600
+                    hover:bg-primary/10
+                    data-[active=true]:bg-primary/15
+                    data-[active=true]:text-primary
                     transition-colors
                     rounded-md
                   `}>
@@ -145,7 +146,7 @@ function SidebarMenuContent() {
                       }
                     }}
                     className="flex items-center gap-2">
-                    <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-[#EF7B55]" />
+                    <item.icon className="h-3 w-3 xs:h-4 xs:w-4 text-primary" />
                     <span className="text-[0.85rem] xs:text-xs sm:text-sm">
                       {item.title}
                     </span>
@@ -161,17 +162,18 @@ function SidebarMenuContent() {
 }
 
 function PageLoader() {
+  const brand = useBrand();
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 text-[#EF7B55]">
       <Image
-        src="/texagon-logo.png"
-        alt="Techxagon Logo"
-        width={64}
+        src={brand.logo}
+        alt={brand.logoAlt}
+        width={brand.id === "nimet" ? 100 : 64}
         height={64}
         className="animate-pulse object-contain"
       />
       <div className="flex items-center gap-3">
-        <span className="text-xl font-semibold tracking-wide">Techxagon</span>
+        <span className="text-xl font-semibold tracking-wide">{brand.name}</span>
         <Spinner size="md" className="text-[#EF7B55]" />
       </div>
       <p className="text-sm text-slate-500">Loading content...</p>
@@ -180,6 +182,7 @@ function PageLoader() {
 }
 
 export default function ParentLayout({children}: {children: React.ReactNode}) {
+  const brand = useBrand();
   const {data: session, status} = useSession();
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const pathname = usePathname();
@@ -230,18 +233,18 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
     <SidebarProvider className="bg-white">
       <LoadingContext.Provider value={{setIsNavigating}}>
         <div className="flex min-h-screen w-full font-sans">
-          <Sidebar className="">
-            <SidebarHeader className="bg-[#EF7B55] py-5">
+          <Sidebar>
+            <SidebarHeader className="py-5" style={{ backgroundColor: brand.colors.primary }}>
               <div className="flex items-center gap-2 px-3 xs:px-4 py-2">
                 <Image
-                  src="/texagon-logo.png"
-                  alt="Techxagon Logo"
-                  width={28}
+                  src={brand.logo}
+                  alt={brand.logoAlt}
+                  width={brand.id === "nimet" ? 40 : 28}
                   height={28}
-                  className="shrink-0 object-contain brightness-0 invert"
+                  className={`shrink-0 object-contain ${brand.id === "techxagon" ? "brightness-0 invert" : ""}`}
                 />
                 <span className="font-semibold text-white text-base xs:text-lg">
-                  Techxagon
+                  {brand.name}
                 </span>
               </div>
             </SidebarHeader>
@@ -284,12 +287,13 @@ export default function ParentLayout({children}: {children: React.ReactNode}) {
             <header className="sticky top-0 z-50 py-4">
               <style jsx>{`
                 header {
-                  background: rgba(247, 151, 113, 0.3);
+                  background: ${brand.isNiMet ? "rgba(0, 107, 62, 0.12)" : "rgba(247, 151, 113, 0.3)"};
                   backdrop-filter: blur(8px);
                   -webkit-backdrop-filter: blur(8px);
                   position: sticky;
                   top: 0;
                   z-index: 50;
+                  border-bottom: ${brand.isNiMet ? "1px solid rgba(0, 107, 62, 0.2)" : "none"};
                 }
                 header > div {
                   position: relative;

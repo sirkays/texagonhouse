@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Maximize, Minimize, RefreshCw, Info } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useBrand } from "@/hooks/use-brand";
 
 /**
  * Scratch Studio — Student Page
@@ -19,6 +20,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 const SCRATCH_EDITOR_URL = "/scratch-editor/index.html";
 
 export default function StudentScratchPage() {
+    const brand = useBrand();
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const { setOpen } = useSidebar();
@@ -61,8 +63,8 @@ export default function StudentScratchPage() {
                 <div className="flex items-center justify-between gap-2 border-b border-[#EF7B553a] bg-white px-3 py-2">
                     <div className="flex min-w-0 items-center gap-2">
                         <Image
-                            src="/texagon-logo.png"
-                            alt="Techxagon"
+                            src={brand.logo}
+                            alt={brand.name}
                             width={20}
                             height={20}
                             className="shrink-0 object-contain"
@@ -111,9 +113,9 @@ export default function StudentScratchPage() {
                 {isLoading && (
                     <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-white/90">
                         <Image
-                            src="/texagon-logo.png"
-                            alt="Techxagon"
-                            width={56}
+                            src={brand.logo}
+                            alt={brand.name}
+                            width={brand.id === "nimet" ? 100 : 56}
                             height={56}
                             className="animate-pulse object-contain"
                         />
