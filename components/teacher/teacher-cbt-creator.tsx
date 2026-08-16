@@ -2340,7 +2340,7 @@ export function TeacherCBTCreator() {
             <TabsTrigger
               value="create"
               id="tour-cbt-create-tab"
-              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
               <PlusCircle className="h-4 w-4 shrink-0" />
               Create New Test
@@ -2348,7 +2348,7 @@ export function TeacherCBTCreator() {
             <TabsTrigger
               value="manage"
               id="tour-cbt-manage-tab"
-              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
               <ClipboardList className="h-4 w-4 shrink-0" />
               Manage Tests
@@ -2356,7 +2356,7 @@ export function TeacherCBTCreator() {
             <TabsTrigger
               value="analytics"
               id="tour-cbt-analytics-tab"
-              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
               <BarChart3 className="h-4 w-4 shrink-0" />
               Test Analytics
@@ -2364,7 +2364,7 @@ export function TeacherCBTCreator() {
             <TabsTrigger
               value="student-performance"
               id="tour-cbt-performance-tab"
-              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
               <GraduationCap className="h-4 w-4 shrink-0" />
               Student Performance
@@ -2372,7 +2372,7 @@ export function TeacherCBTCreator() {
             <TabsTrigger
               value="manage-student"
               id="tour-cbt-manage-student-tab"
-              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
               <Users className="h-4 w-4 shrink-0" />
               Manage Student
@@ -2380,7 +2380,7 @@ export function TeacherCBTCreator() {
             <TabsTrigger
               value="delete-attempts"
               id="tour-cbt-delete-attempts-tab"
-              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
+              className="bg-transparent flex-1 sm:flex-none justify-center px-4 py-2.5 data-[state=active]:bg-[#EF7B55] data-[state=active]:text-white rounded-xl gap-2 transition-all duration-300 whitespace-nowrap text-sm font-semibold hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-slate-600 dark:text-slate-300"
               disabled={isSaving}>
               <Trash2 className="h-4 w-4 shrink-0" />
               Delete Attempts
