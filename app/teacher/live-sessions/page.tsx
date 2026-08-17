@@ -451,22 +451,6 @@ export default function LiveSessionsPage() {
   const courseRequired = addCourseIds.size > 0; // "course_name required" => at least 1 course selected
   const canStart = roomNameRequired && courseRequired && !startLoading;
 
-  if (videoProvider === null) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] text-slate-500">
-        <Loader2 className="animate-spin mr-2 text-[#EF7B55]" size={20} /> Loading settings...
-      </div>
-    );
-  }
-
-  if (videoProvider === "live") {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh] text-slate-500">
-        <Loader2 className="animate-spin mr-2 text-[#EF7B55]" size={20} /> Redirecting to Live Sessions...
-      </div>
-    );
-  }
-
   /* ---------- Fetch teacher's courses on mount ---------- */
   useEffect(() => {
     fetch("/api/teacher/assessments/courses")
@@ -639,7 +623,7 @@ export default function LiveSessionsPage() {
     }
   }, [roomId]);
 
-  /* ---------- Full-page iframe ---------- */
+  /* ---------- Conditional Rendering (Guaranteed after all hooks) ---------- */
   if (joinLink) {
     return (
       <div
@@ -681,8 +665,8 @@ export default function LiveSessionsPage() {
             onClick={() => setJoinLink(null)}
             style={{
               background: "#EF7B55",
-              border: "none",
               color: "#fff",
+              border: "none",
               borderRadius: 6,
               padding: "4px 12px",
               fontSize: 12,
@@ -693,27 +677,33 @@ export default function LiveSessionsPage() {
               gap: 4,
             }}
           >
-            <X size={12} />
-            Exit Session
+            <X size={12} /> Exit
           </button>
         </div>
+
         <iframe
           src={joinLink}
-          allow="camera; microphone; display-capture; fullscreen; autoplay; clipboard-write"
+          allow="camera; microphone; fullscreen; display-capture"
           allowFullScreen
-          style={{
-            flex: 1,
-            width: "100%",
-            border: "none",
-            display: "block",
-            minWidth: 0,
-            minHeight: 0,
-          }}
-          title="Live Session"
+          style={{ width: "100%", height: "calc(100% - 40px)", border: "none" }}
         />
       </div>
     );
   }
+
+  if (videoProvider === null) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh] text-slate-500">
+        <Loader2 className="animate-spin mr-2 text-[#EF7B55]" size={20} /> Loading settings...
+      </div>
+    );
+  }
+
+  if (videoProvider === "live") {
+    return <HomePage />;
+  }
+
+
 
   /* ---------- Item lists for selects ---------- */
   const courseItems = courses.map((c) => ({
