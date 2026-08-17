@@ -36,6 +36,7 @@ import { MeetingControlBar } from "./MeetingControlBar";
 import { EndMeetingDialog } from "./EndMeetingDialog";
 import { ParticipantActionsMenu, BlockedParticipantsSection } from "./ParticipantActionsMenu";
 import { MeetingDiagnostics } from './MeetingDiagnostics';
+import { useBrand } from "@/hooks/use-brand";
 
 // ── Types ──
 
@@ -343,8 +344,7 @@ const MeetingRoom = () => {
 
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session, status } = useSession();
-
+  const brand = useBrand();
   const {
     useCallCallingState,
     useParticipants,
@@ -354,11 +354,28 @@ const MeetingRoom = () => {
     useCameraState,
     useLocalParticipant,
     useIsCallRecordingInProgress,
+    useCallCustomData,
   } = useCallStateHooks();
   const call = useCall();
+  const custom = useCallCustomData();
   const callingState = useCallCallingState();
   const allParticipantsRaw = useParticipants();
   const isRecording = useIsCallRecordingInProgress();
+
+  const meetingTitle = useMemo(() => {
+    const rawTitle =
+      (custom?.title as string) ||
+      (custom?.description as string) ||
+      (custom?.name as string) ||
+      (call?.state?.custom?.title as string) ||
+      (call?.state?.custom?.description as string) ||
+      (call?.state?.custom?.name as string);
+
+    if (rawTitle && rawTitle.trim() && rawTitle.trim().toLowerCase() !== "meeting") {
+      return rawTitle.trim();
+    }
+    return `${brand.name} Live Session`;
+  }, [custom, call?.state?.custom, brand.name]);
 
   // Deduplicated participant count (filters ghost/stale sessions)
   const uniqueParticipantCount = useMemo(() => {
@@ -900,8 +917,11 @@ const MeetingRoom = () => {
       {/* Header Bar */}
       <header className="relative z-20 w-full px-3 sm:px-6 py-2.5 sm:py-3.5 flex items-center justify-between backdrop-blur-xl bg-slate-950/70 border-b border-white/10 gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <h1 className="text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[160px] sm:max-w-[300px]">
-            Techxagon Live Session
+          <h1
+            className="text-sm sm:text-base font-bold text-white tracking-wide truncate max-w-[160px] sm:max-w-[300px]"
+            title={meetingTitle}
+          >
+            {meetingTitle}
           </h1>
           {isRecording && (
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 border border-red-500/50 text-red-400 font-extrabold text-xs animate-pulse shrink-0 shadow-lg shadow-red-500/30" title="This meeting is being recorded">
