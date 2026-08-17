@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 
+import { useBrand } from "@/hooks/use-brand";
+
 type LayoutConfig = {
   top: string;
   left: string;
@@ -32,6 +34,7 @@ type TemplateConfig = {
 type GlobalLayoutConfig = {
   techxagon: TemplateConfig;
   akure: TemplateConfig;
+  nimet: TemplateConfig;
 };
 
 const DEFAULT_CONFIG: GlobalLayoutConfig = {
@@ -42,6 +45,10 @@ const DEFAULT_CONFIG: GlobalLayoutConfig = {
   akure: {
     course_name: { top: "49%", left: "30.5%", fontSize: "1.65rem", fontFamily: "'Georgia', 'Times New Roman', serif", color: "#1a1a1a" },
     center_name: { top: "90%", left: "31.5%", fontSize: "1.3rem", fontFamily: "'Georgia', 'Times New Roman', serif", color: "#1a1a1a" },
+  },
+  nimet: {
+    course_name: { top: "58.5%", left: "50%", fontSize: "1.3rem", fontFamily: "'Space Grotesk', 'Georgia', serif", color: "#006B3E" },
+    center_name: { top: "88%", left: "50%", fontSize: "1.1rem", fontFamily: "'Space Grotesk', 'Georgia', serif", color: "#003822" },
   },
 };
 
@@ -133,10 +140,13 @@ function DraggableText({
 }
 
 export default function CertificateLayoutPage() {
+  const brand = useBrand();
   const [config, setConfig] = useState<GlobalLayoutConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTemplate, setActiveTemplate] = useState<"techxagon" | "akure">("techxagon");
+  const [activeTemplate, setActiveTemplate] = useState<"techxagon" | "akure" | "nimet">(
+    brand.id === "nimet" ? "nimet" : "techxagon"
+  );
   const [selectedElement, setSelectedElement] = useState<"course_name" | "center_name" | null>(null);
   const { toast } = useToast();
 
@@ -152,6 +162,7 @@ export default function CertificateLayoutPage() {
         setConfig({
           techxagon: { ...DEFAULT_CONFIG.techxagon, ...data.certificate_layout.techxagon },
           akure: { ...DEFAULT_CONFIG.akure, ...data.certificate_layout.akure },
+          nimet: { ...DEFAULT_CONFIG.nimet, ...data.certificate_layout.nimet },
         });
       }
     } catch (err) {
@@ -195,7 +206,12 @@ export default function CertificateLayoutPage() {
     return <div className="p-8">Loading layout settings...</div>;
   }
 
-  const activeBg = activeTemplate === "techxagon" ? "/certificate.png" : "/akure_cert_image.png";
+  const activeBg =
+    activeTemplate === "nimet"
+      ? "/nimet_cert_image.png"
+      : activeTemplate === "techxagon"
+      ? "/certificate.png"
+      : "/akure_cert_image.png";
   const currentConfig = config[activeTemplate];
 
   return (
@@ -215,12 +231,18 @@ export default function CertificateLayoutPage() {
               setSelectedElement(null);
             }}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-56">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="techxagon">Techxagon Template</SelectItem>
-              <SelectItem value="akure">Akure Template</SelectItem>
+              {brand.id === "nimet" ? (
+                <SelectItem value="nimet">NiMet Template</SelectItem>
+              ) : (
+                <>
+                  <SelectItem value="techxagon">Techxagon Template</SelectItem>
+                  <SelectItem value="akure">Akure Template</SelectItem>
+                </>
+              )}
             </SelectContent>
           </Select>
           <Button onClick={handleSave} disabled={saving}>
@@ -235,7 +257,7 @@ export default function CertificateLayoutPage() {
           <div
             className="relative w-full shadow-2xl bg-white select-none overflow-hidden"
             style={{
-              aspectRatio: activeTemplate === "techxagon" ? "1260/820" : "1260/880",
+              aspectRatio: activeTemplate === "nimet" ? "4/3" : activeTemplate === "techxagon" ? "1260/820" : "1260/880",
               maxWidth: "100%",
               maxHeight: "100%",
             }}

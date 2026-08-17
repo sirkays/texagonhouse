@@ -33,8 +33,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 import Image from "next/image";
+import { useBrand } from "@/hooks/use-brand";
 
-type TemplateType = "techxagon" | "akure";
+type TemplateType = "techxagon" | "akure" | "nimet";
 
 type LayoutConfig = {
   top: string;
@@ -52,6 +53,7 @@ type TemplateConfig = {
 type GlobalLayoutConfig = {
   techxagon: TemplateConfig;
   akure: TemplateConfig;
+  nimet?: TemplateConfig;
 };
 
 type ManualCertificate = {
@@ -68,7 +70,67 @@ type ManualCertificate = {
 const TEMPLATE_LABELS: Record<TemplateType, string> = {
   techxagon: "Techxagon (Completion)",
   akure: "Akure (Achievement)",
+  nimet: "NiMet (Achievement & Completion)",
 };
+
+/* ───────────────────────────────────────────────────────────
+   NiMet Certificate Preview — nimet_cert_image.png
+   ─────────────────────────────────────────────────────────── */
+function NiMetCertPreview({ cert }: { cert: ManualCertificate; layoutConfig?: TemplateConfig | null }) {
+  return (
+    <div className="relative w-full aspect-[4/3] select-none bg-white">
+      <Image
+        src="/nimet_cert_image.png"
+        fill
+        className="object-contain"
+        alt="NiMet Certificate of Achievement"
+        priority
+      />
+
+      {/* Student Name */}
+      <div
+        className="absolute flex items-center justify-center"
+        style={{ top: "47.5%", left: "15%", right: "15%", height: "8%" }}
+      >
+        <p
+          className="text-center w-full"
+          style={{
+            fontFamily: "'Space Grotesk', 'Georgia', serif",
+            fontSize: "clamp(0.9rem, 3.2vw, 2.5rem)",
+            lineHeight: "1.1",
+            color: "#003822",
+            fontWeight: 800,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+          }}
+        >
+          {cert.student_name}
+        </p>
+      </div>
+
+      {/* Course Name */}
+      <div
+        className="absolute flex items-center justify-center"
+        style={{ top: "58.5%", left: "15%", right: "15%", height: "8%" }}
+      >
+        <p
+          className="text-center w-full"
+          style={{
+            fontFamily: "'Space Grotesk', 'Georgia', serif",
+            fontSize: "clamp(0.6rem, 1.8vw, 1.3rem)",
+            lineHeight: "1.2",
+            color: "#006B3E",
+            fontWeight: 800,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+          }}
+        >
+          {cert.course_name}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 /* ───────────────────────────────────────────────────────────
    Techxagon Certificate Preview — certificate.png
@@ -367,6 +429,9 @@ function AkureCertPreview({ cert, layoutConfig }: { cert: ManualCertificate; lay
    Unified Certificate Preview — picks the right template
    ─────────────────────────────────────────────────────────── */
 function CertificatePreview({ cert, layoutConfig }: { cert: ManualCertificate; layoutConfig?: GlobalLayoutConfig | null }) {
+  if (cert.template === "nimet") {
+    return <NiMetCertPreview cert={cert} layoutConfig={layoutConfig?.nimet} />;
+  }
   if (cert.template === "akure") {
     return <AkureCertPreview cert={cert} layoutConfig={layoutConfig?.akure} />;
   }
@@ -377,12 +442,14 @@ function CertificatePreview({ cert, layoutConfig }: { cert: ManualCertificate; l
    Main Page Component
    ─────────────────────────────────────────────────────────── */
 export default function ManualCertificatePage() {
+  const brand = useBrand();
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [certificates, setCertificates] = useState<ManualCertificate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] =
-    useState<TemplateType>("techxagon");
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>(
+    brand.id === "nimet" ? "nimet" : "techxagon"
+  );
   const { toast } = useToast();
 
   const [selectedCerts, setSelectedCerts] = useState<number[]>([]);
@@ -390,6 +457,28 @@ export default function ManualCertificatePage() {
 
   // Preview state
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+
+  const availableTemplates: { value: TemplateType; label: string; image: string }[] =
+    brand.id === "nimet"
+      ? [
+          {
+            value: "nimet",
+            label: "NiMet — Certificate of Achievement & Completion",
+            image: "/nimet_cert_image.png",
+          },
+        ]
+      : [
+          {
+            value: "techxagon",
+            label: "Techxagon — Certificate of Completion",
+            image: "/certificate.png",
+          },
+          {
+            value: "akure",
+            label: "Akure — Certificate of Achievement",
+            image: "/akure_cert_image.png",
+          },
+        ];
 
   const fetchCertificates = async () => {
     setIsLoading(true);
@@ -667,60 +756,41 @@ export default function ManualCertificatePage() {
                   <SelectValue placeholder="Select a template..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="techxagon">
-                    Techxagon — Certificate of Completion
-                  </SelectItem>
-                  <SelectItem value="akure">
-                    Akure — Certificate of Achievement
-                  </SelectItem>
+                  {availableTemplates.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      {t.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             {/* Template Preview Thumbnails */}
             <div className="flex gap-4 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setSelectedTemplate("techxagon")}
-                className={`relative w-48 aspect-[3/2] rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedTemplate === "techxagon"
-                    ? "border-[#EF7B55] ring-2 ring-[#EF7B55]/30"
-                    : "border-border hover:border-muted-foreground/50"
-                }`}
-              >
-                <Image
-                  src="/certificate.png"
-                  fill
-                  className="object-contain"
-                  alt="Techxagon Template"
-                />
-                {selectedTemplate === "techxagon" && (
-                  <div className="absolute top-1 right-1 bg-[#EF7B55] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                    Selected
-                  </div>
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedTemplate("akure")}
-                className={`relative w-48 aspect-[3/2] rounded-lg overflow-hidden border-2 transition-all ${
-                  selectedTemplate === "akure"
-                    ? "border-[#EF7B55] ring-2 ring-[#EF7B55]/30"
-                    : "border-border hover:border-muted-foreground/50"
-                }`}
-              >
-                <Image
-                  src="/akure_cert_image.png"
-                  fill
-                  className="object-contain"
-                  alt="Akure Template"
-                />
-                {selectedTemplate === "akure" && (
-                  <div className="absolute top-1 right-1 bg-[#EF7B55] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
-                    Selected
-                  </div>
-                )}
-              </button>
+              {availableTemplates.map((t) => (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setSelectedTemplate(t.value)}
+                  className={`relative w-48 aspect-[3/2] rounded-lg overflow-hidden border-2 transition-all ${
+                    selectedTemplate === t.value
+                      ? "border-[#006B3E] ring-2 ring-[#006B3E]/30"
+                      : "border-border hover:border-muted-foreground/50"
+                  }`}
+                >
+                  <Image
+                    src={t.image}
+                    fill
+                    className="object-contain"
+                    alt={t.label}
+                  />
+                  {selectedTemplate === t.value && (
+                    <div className="absolute top-1 right-1 bg-[#006B3E] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                      Selected
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
 
             {/* File + Upload */}
