@@ -127,7 +127,8 @@
   }
 
   [data-brand="nimet"] .from-\[\#EF7B55\],
-  [data-brand="nimet"] .from-\[\#ef7b55\] {
+  [data-brand="nimet"] .from-\[\#ef7b55\],
+  [data-brand="nimet"] .from-orange-400 {
     --tw-gradient-from: #006B3E var(--tw-gradient-from-position) !important;
     --tw-gradient-to: rgb(0 107 62 / 0) var(--tw-gradient-to-position) !important;
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
@@ -135,6 +136,7 @@
 
   [data-brand="nimet"] .to-\[\#EF7B55\],
   [data-brand="nimet"] .to-\[\#ef7b55\],
+  [data-brand="nimet"] .to-orange-400,
   [data-brand="nimet"] .to-\[\#e26d47\],
   [data-brand="nimet"] .to-\[\#E96D47\] {
     --tw-gradient-to: #006B3E var(--tw-gradient-to-position) !important;
@@ -142,6 +144,7 @@
 
   [data-brand="nimet"] .via-\[\#EF7B55\],
   [data-brand="nimet"] .via-\[\#ef7b55\],
+  [data-brand="nimet"] .via-red-500,
   [data-brand="nimet"] .via-\[\#F79771\],
   [data-brand="nimet"] .via-\[\#E96D47\],
   [data-brand="nimet"] .via-\[\#F797713a\] {

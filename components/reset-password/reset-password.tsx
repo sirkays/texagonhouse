@@ -104,24 +104,41 @@ export default function ResetPasswordContent() {
         {/* Your existing waitingForEmail JSX */}
         <div className="w-full md:w-[40%] flex flex-col justify-center items-center bg-white p-10 md:p-8 min-h-screen md:min-h-auto">
           <div className="max-w-sm mx-auto w-full">
-            <div className="flex items-center mb-10">
-              <Image
-                src={brand.logo}
-                alt={brand.logoAlt}
-                width={brand.id === "nimet" ? 140 : 64}
-                height={brand.id === "nimet" ? 54 : 64}
-                className="rounded-lg mr-4 object-contain"
-              />
-              <div className="flex flex-col">
-                <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">
-                  {brand.fullName.toUpperCase()}
-                </h6>
-                <hr className="w-full my-2 border-gray-900" />
-                <p className="text-gray-600 italic text-sm sm:text-base">
-                  {brand.tagline}
-                </p>
+            {brand.id === "nimet" ? (
+              <div className="mb-8 flex flex-col items-start">
+                <Image
+                  src="/nimet-logo.png"
+                  alt="Nigerian Meteorological Agency"
+                  width={240}
+                  height={70}
+                  priority
+                  className="object-contain h-14 sm:h-16 w-auto mb-2"
+                />
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                  Official Learning Portal
+                </span>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center mb-8">
+                <Image
+                  src="/logo.png"
+                  alt="TechXagon Logo"
+                  width={64}
+                  height={64}
+                  priority
+                  className="rounded-lg mr-4 object-contain shrink-0"
+                />
+                <div className="flex flex-col min-w-0">
+                  <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl tracking-tight leading-tight">
+                    TECHXAGON ACADEMY
+                  </h6>
+                  <hr className="w-full my-2 border-gray-900" />
+                  <p className="text-gray-600 italic text-sm">
+                    Readying the Future
+                  </p>
+                </div>
+              </div>
+            )}
 
             <h2 className="text-2xl text-center sm:text-3xl font-bold mb-6">
               Check Your Email
@@ -171,24 +188,41 @@ export default function ResetPasswordContent() {
       {/* Your existing main form JSX - exactly the same */}
       <div className="w-full md:w-[40%] flex flex-col justify-center items-center bg-white p-10 md:p-8 min-h-screen md:min-h-auto">
         <div className="max-w-sm mx-auto w-full">
-          <div className="flex items-center mb-10">
-            <Image
-              src={brand.logo}
-              alt={brand.logoAlt}
-              width={brand.id === "nimet" ? 140 : 64}
-              height={brand.id === "nimet" ? 54 : 64}
-              className="rounded-lg mr-4 object-contain"
-            />
-            <div className="flex flex-col">
-              <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl whitespace-nowrap">
-                {brand.fullName.toUpperCase()}
-              </h6>
-              <hr className="w-full my-2 border-gray-900" />
-              <p className="text-gray-600 italic text-sm sm:text-base">
-                {brand.tagline}
-              </p>
+          {brand.id === "nimet" ? (
+            <div className="mb-8 flex flex-col items-start">
+              <Image
+                src="/nimet-logo.png"
+                alt="Nigerian Meteorological Agency"
+                width={240}
+                height={70}
+                priority
+                className="object-contain h-14 sm:h-16 w-auto mb-2"
+              />
+              <span className="text-xs font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                Official Learning Portal
+              </span>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center mb-8">
+              <Image
+                src="/logo.png"
+                alt="TechXagon Logo"
+                width={64}
+                height={64}
+                priority
+                className="rounded-lg mr-4 object-contain shrink-0"
+              />
+              <div className="flex flex-col min-w-0">
+                <h6 className="text-gray-900 font-extrabold text-xl sm:text-2xl tracking-tight leading-tight">
+                  TECHXAGON ACADEMY
+                </h6>
+                <hr className="w-full my-2 border-gray-900" />
+                <p className="text-gray-600 italic text-sm">
+                  Readying the Future
+                </p>
+              </div>
+            </div>
+          )}
 
           <h2 className="text-2xl sm:text-3xl font-bold mb-6">
             Reset Your Password
@@ -263,8 +297,11 @@ export default function ResetPasswordContent() {
 
             <Button
               type="submit"
-              variant="gradient"
-              className="w-full py-6 text-lg font-bold"
+              className={`w-full py-6 text-lg font-bold text-white transition-all shadow-md cursor-pointer ${
+                brand.id === "nimet"
+                  ? "bg-gradient-to-r from-[#006B3E] via-[#005230] to-[#006B3E] hover:from-[#005230] hover:to-[#006B3E]"
+                  : "bg-gradient-to-r from-orange-400 via-red-500 to-orange-400 hover:opacity-90"
+              }`}
               disabled={loading}>
               {loading ? (
                 <Spinner size="md" className="text-white" />
