@@ -164,6 +164,7 @@ const LoadingContext = createContext<{
 } | null>(null);
 
 function SidebarMenuContent() {
+  const brand = useBrand();
   const pathname = usePathname();
   const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
   const isMobile = useMediaQuery({ maxWidth: 639 });
@@ -175,12 +176,19 @@ function SidebarMenuContent() {
     }
   };
 
+  const navItems = navigation.filter((item) => {
+    if (brand.id === "nimet" && item.id === "parents") {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <SidebarContent className="mt-4 bg-transparent">
       <SidebarGroup>
         <SidebarGroupContent>
           <SidebarMenu>
-            {navigation.map((item) => (
+            {navItems.map((item) => (
               <SidebarMenuItem key={item.id}>
                 <SidebarMenuButton
                   asChild
