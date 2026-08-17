@@ -187,9 +187,9 @@ function SidebarMenuContent() {
                   isActive={pathname === item.path}
                   className={`
                     py-5
-                    hover:bg-primary/10
-                    data-[active=true]:bg-primary/15
-                    data-[active=true]:text-primary
+                    hover:bg-[#F797713a]
+                    data-[active=true]:bg-[#EF7B553a]
+                    data-[active=true]:text-slate-600
                     transition-colors
                     rounded-md
                   `}>
@@ -202,7 +202,7 @@ function SidebarMenuContent() {
                       }
                     }}
                     className="flex items-center gap-2">
-                    <item.icon className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+                    <item.icon className="h-3 w-3 sm:h-4 sm:w-4 text-[#EF7B55]" />
                     <span className="text-[0.85rem] sm:text-sm">
                       {item.title}
                     </span>
@@ -428,7 +428,7 @@ export default function AdminLayout({
       <LoadingContext.Provider value={{ setIsNavigating }}>
         <div className="flex min-h-screen w-full font-sans">
           <Sidebar className="print:hidden">
-            <SidebarHeader className="py-5" style={{ backgroundColor: brand.colors.primary }}>
+            <SidebarHeader className="bg-[#EF7B55] py-5">
               <div className="flex items-center gap-2 px-3 sm:px-4 py-2">
                 <Image
                   src={brand.logo}

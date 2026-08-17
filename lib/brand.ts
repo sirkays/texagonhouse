@@ -64,11 +64,11 @@ export const BRAND_CONFIGS: Record<BrandType, BrandConfig> = {
       linkedin: "https://linkedin.com/company/techxagon",
     },
     colors: {
-      primary: "#18181b",
-      primaryHover: "#27272a",
-      accent: "#f43f5e",
-      dark: "#09090b",
-      lightBg: "#fafafa",
+      primary: "#EF7B55",
+      primaryHover: "#e0663f",
+      accent: "#F79771",
+      dark: "#1e293b",
+      lightBg: "#fff7f5",
     },
   },
   nimet: {
