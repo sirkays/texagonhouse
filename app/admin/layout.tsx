@@ -177,8 +177,14 @@ function SidebarMenuContent() {
   };
 
   const navItems = navigation.filter((item) => {
-    if (brand.id === "nimet" && item.id === "parents") {
-      return false;
+    if (brand.id === "nimet" || brand.isNiMet) {
+      if (
+        item.id === "parents" ||
+        item.id === "leaderboard" ||
+        item.id === "gamification"
+      ) {
+        return false;
+      }
     }
     return true;
   });

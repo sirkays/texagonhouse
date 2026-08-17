@@ -896,31 +896,33 @@ export function DashboardOverview() {
           </CardContent>
         </Card>
 
-        <Card className={isAero
-          ? "bg-white/60 backdrop-blur-md border border-slate-200/40 shadow-sm rounded-2xl hover:translate-y-[-2px] hover:shadow-md transition-all duration-350"
-          : "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200"
-        }>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <TrendingUp className={`h-5 w-5 ${isAero ? "text-emerald-500" : "text-green-600"}`} />
-              <CardTitle className={isAero ? "text-sm sm:text-base font-bold text-slate-800" : "text-sm sm:text-base text-green-800"}>
-                Leaderboard
-              </CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className={`text-xl sm:text-2xl font-bold ${isAero ? "text-slate-800" : "text-green-700"}`}>
-              #{data?.gamification?.leaderboard?.org_rank ?? "N/A"}
-            </div>
-            <div className={`flex items-center gap-1 text-xs sm:text-sm font-semibold ${isAero ? "text-slate-500" : "text-green-600"}`}>
-              <Zap className="h-3 w-3" />
-              <span>
-                Global rank #
-                {data?.gamification?.leaderboard?.global_rank ?? "N/A"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {(!brand.isNiMet && brand.id !== "nimet") && (
+          <Card className={isAero
+            ? "bg-white/60 backdrop-blur-md border border-slate-200/40 shadow-sm rounded-2xl hover:translate-y-[-2px] hover:shadow-md transition-all duration-350"
+            : "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200"
+          }>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <TrendingUp className={`h-5 w-5 ${isAero ? "text-emerald-500" : "text-green-600"}`} />
+                <CardTitle className={isAero ? "text-sm sm:text-base font-bold text-slate-800" : "text-sm sm:text-base text-green-800"}>
+                  Leaderboard
+                </CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className={`text-xl sm:text-2xl font-bold ${isAero ? "text-slate-800" : "text-green-700"}`}>
+                #{data?.gamification?.leaderboard?.org_rank ?? "N/A"}
+              </div>
+              <div className={`flex items-center gap-1 text-xs sm:text-sm font-semibold ${isAero ? "text-slate-500" : "text-green-600"}`}>
+                <Zap className="h-3 w-3" />
+                <span>
+                  Global rank #
+                  {data?.gamification?.leaderboard?.global_rank ?? "N/A"}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Learning / Tests / Live Sessions */}

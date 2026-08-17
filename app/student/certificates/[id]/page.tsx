@@ -179,7 +179,7 @@ export default function CertificatePage() {
           <div className="relative mb-10 shadow-2xl rounded-xl overflow-hidden bg-white">
             <div className="hidden sm:block" ref={certificateRef}>
               <CertificateTemplate
-                className="w-full aspect-[1/1.414] max-h-[700px] mx-auto"
+                className="w-full max-h-[700px] mx-auto"
                 certificate={certificate}
               />
             </div>

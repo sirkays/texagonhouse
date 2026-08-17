@@ -107,6 +107,7 @@ const LoadingContext = createContext<{
 } | null>(null);
 
 function SidebarMenuContent() {
+  const brand = useBrand();
   const pathname = usePathname();
   const { setOpenMobile, isMobile: isMobileFromSidebar } = useSidebar();
   const isMobile = useMediaQuery({ maxWidth: 639 });
@@ -119,10 +120,23 @@ function SidebarMenuContent() {
     }
   };
 
-  // Resolve the live-sessions path dynamically
-  const resolvedItems = menuItems.map((item) =>
-    item.id === "live-sessions" ? { ...item, path: liveSessionPath } : item
-  );
+  // Resolve the live-sessions path dynamically and filter by brand
+  const resolvedItems = menuItems
+    .map((item) =>
+      item.id === "live-sessions" ? { ...item, path: liveSessionPath } : item
+    )
+    .filter((item) => {
+      if (brand.id === "nimet" || brand.isNiMet) {
+        if (
+          item.id === "ide" ||
+          item.id === "scratch" ||
+          item.id === "leaderboard"
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
 
   return (
     <SidebarContent className="mt-4 bg-transparent">
