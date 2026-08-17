@@ -344,6 +344,7 @@ const MeetingRoom = () => {
 
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session, status } = useSession();
   const brand = useBrand();
   const {
     useCallCallingState,
