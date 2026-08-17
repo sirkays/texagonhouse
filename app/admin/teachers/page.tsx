@@ -179,14 +179,8 @@ function TeacherModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="
-      w-[95vw] sm:w-full max-w-md sm:max-w-lg p-0 
-      h-[90vh] sm:h-auto max-h-[95vh] 
-      overflow-hidden rounded-xl
-    "
-      >
-        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 border-b">
+      <DialogContent className="w-[95vw] sm:w-full max-w-md sm:max-w-lg p-0 max-h-[90vh] flex flex-col rounded-xl overflow-hidden shadow-2xl border bg-background">
+        <DialogHeader className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b shrink-0 bg-background">
           <DialogTitle className="text-base sm:text-lg font-semibold">
             {isEditing ? "Edit Teacher" : "Add New Teacher"}
           </DialogTitle>
@@ -197,7 +191,7 @@ function TeacherModal({
           )}
         </DialogHeader>
 
-        <div className="px-4 sm:px-6 py-4 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)] sm:max-h-[calc(95vh-160px)]">
+        <div className="px-4 sm:px-6 py-4 space-y-6 overflow-y-auto flex-1">
           {/* Profile Picture Upload */}
           <div className="space-y-3">
             <Label className="text-sm font-medium">Profile Picture</Label>
@@ -392,41 +386,20 @@ function TeacherModal({
         </div>
 
         {/* Footer */}
-        <DialogFooter
-          className="
-    sticky bottom-0 left-0 right-0 
-    px-4 sm:px-6 py-4 
-    border-t bg-background/95 backdrop-blur-sm
-    flex flex-col-reverse sm:flex-row 
-    gap-3 sm:gap-2 
-    sm:justify-end sm:items-center
-    z-10
-  "
-        >
+        <DialogFooter className="px-4 sm:px-6 py-3.5 border-t bg-slate-50 dark:bg-slate-900/40 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end sm:items-center shrink-0">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={loading} // Disable cancel
-            className="
-      w-full sm:w-auto 
-      text-sm font-medium 
-      border-gray-300 hover:bg-muted
-      transition-all duration-200
-    "
+            disabled={loading}
+            className="w-full sm:w-auto text-sm font-medium border-gray-300 hover:bg-muted transition-all duration-200"
           >
             Cancel
           </Button>
 
           <Button
             onClick={handleSubmit}
-            disabled={loading} // Disable submit
-            className="
-      w-full sm:w-auto 
-      text-sm font-semibold 
-      bg-primary hover:bg-primary/90 
-      text-primary-foreground
-      transition-all duration-200
-    "
+            disabled={loading}
+            className="w-full sm:w-auto text-sm font-semibold bg-primary hover:bg-primary/90 text-primary-foreground transition-all duration-200"
           >
             {loading ? (
               <>
