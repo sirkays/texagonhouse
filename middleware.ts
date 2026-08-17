@@ -3,6 +3,10 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 const DJANGO_BASE_URL = process.env.BASE_URL;
+const SECRET =
+  process.env.SECRET_KEY ||
+  process.env.NEXTAUTH_SECRET ||
+  "texagon-secret-key-fallback-2026-prod-auth";
 
 // how long you’re willing to wait for verify (edge fetch can hang)
 const VERIFY_TIMEOUT_MS = 2500;
@@ -19,10 +23,27 @@ export default async function middleware(req: NextRequest) {
 
   if (!isProtected) return NextResponse.next();
 
-  const token = await getToken({
+  // Try finding token across both custom cookie name and standard NextAuth cookie names
+  let token = await getToken({
     req,
-    secret: process.env.SECRET_KEY,
+    secret: SECRET,
+    cookieName: "next-auth.session-token",
   });
+
+  if (!token) {
+    token = await getToken({
+      req,
+      secret: SECRET,
+      cookieName: "__Secure-next-auth.session-token",
+    });
+  }
+
+  if (!token) {
+    token = await getToken({
+      req,
+      secret: SECRET,
+    });
+  }
 
   const sessionToken = (token as any)?.sessionToken as string | undefined;
 

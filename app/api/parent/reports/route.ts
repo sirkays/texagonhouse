@@ -27,10 +27,28 @@ async function proxyPublic(path: string, init: RequestInit = {}) {
 }
 
 async function getSessionToken(request: NextRequest): Promise<string | undefined> {
-  const tokenSession = await getToken({
+  const secret =
+    process.env.SECRET_KEY ||
+    process.env.NEXTAUTH_SECRET ||
+    "texagon-secret-key-fallback-2026-prod-auth";
+  let tokenSession = await getToken({
     req: request,
-    secret: process.env.SECRET_KEY,
+    secret,
+    cookieName: "next-auth.session-token",
   });
+  if (!tokenSession) {
+    tokenSession = await getToken({
+      req: request,
+      secret,
+      cookieName: "__Secure-next-auth.session-token",
+    });
+  }
+  if (!tokenSession) {
+    tokenSession = await getToken({
+      req: request,
+      secret,
+    });
+  }
   return (tokenSession as any)?.sessionToken as string | undefined;
 }
 

@@ -219,7 +219,10 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-  secret: process.env.SECRET_KEY,
+  secret:
+    process.env.SECRET_KEY ||
+    process.env.NEXTAUTH_SECRET ||
+    "texagon-secret-key-fallback-2026-prod-auth",
 
   session: {
     strategy: "jwt",
