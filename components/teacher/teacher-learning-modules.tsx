@@ -402,17 +402,14 @@ export function TeacherLearningModules() {
     sessionToken: string,
     onProgress?: (p: UploadProgress) => void,
   ) {
-    const sig = await fetch(
-      `${DJANGO_BASE}/learning/api/cloudinary-signature/`,
-      {
-        headers: { "X-Session-Token": sessionToken },
+    const sig = await fetch("/api/teacher/cloudinary-signature").then(
+      async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok)
+          throw new Error(j?.detail || j?.error || "Cloudinary signature failed");
+        return j;
       },
-    ).then(async (r) => {
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok)
-        throw new Error(j?.detail || j?.error || "Cloudinary signature failed");
-      return j;
-    });
+    );
 
     const fd = new FormData();
     fd.append("file", file);
@@ -460,12 +457,11 @@ export function TeacherLearningModules() {
     sessionToken: string,
     onProgress?: (p: UploadProgress) => void,
   ) {
-    // 1) Get presigned url from Django
-    const pres = await fetch(`${DJANGO_BASE}/learning/api/presign-s3/`, {
+    // 1) Get presigned url from Django via Next.js proxy
+    const pres = await fetch("/api/teacher/presign-s3", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Session-Token": sessionToken,
       },
       body: JSON.stringify({
         filename: file.name,
