@@ -458,56 +458,102 @@ export function TeacherLearningModules() {
     onProgress?: (p: UploadProgress) => void,
   ) {
     // 1) Get presigned url from Django via Next.js proxy
-    const pres = await fetch("/api/teacher/presign-s3", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        filename: file.name,
-        content_type: file.type || "application/octet-stream",
-      }),
-    }).then(async (r) => {
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok)
-        throw new Error(j?.detail || j?.error || "Failed to presign S3 upload");
-      return j;
-    });
+    let pres: any = null;
+    try {
+      pres = await fetch("/api/teacher/presign-s3", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          content_type: file.type || "application/octet-stream",
+        }),
+      }).then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok)
+          throw new Error(j?.detail || j?.error || "Failed to presign S3 upload");
+        return j;
+      });
+    } catch (presignErr) {
+      console.warn("Presign request failed, falling back to direct proxy upload:", presignErr);
+    }
 
-    // pres.upload_url (PUT) + pres.file_url (public url)
+    // 2) If upload_url is provided, attempt direct client-to-S3 PUT upload (Techxagon default)
+    if (pres?.upload_url) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", pres.upload_url, true);
+          xhr.setRequestHeader(
+            "Content-Type",
+            file.type || "application/octet-stream",
+          );
 
-    // 2) Upload to S3 using PUT
-    await new Promise<void>((resolve, reject) => {
+          xhr.upload.onprogress = (evt) => {
+            if (!evt.lengthComputable) return;
+            const percent = Math.min(
+              99,
+              Math.floor((evt.loaded / evt.total) * 100),
+            );
+            onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              onProgress?.({ percent: 100, loaded: file.size, total: file.size });
+              resolve();
+            } else {
+              reject(new Error(`S3 direct upload status: ${xhr.status}`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("S3 CORS/Network error"));
+          xhr.send(file);
+        });
+
+        return pres.key as string;
+      } catch (directS3Err) {
+        console.warn("Direct S3 PUT encountered CORS or network error. Using proxy upload fallback:", directS3Err);
+      }
+    }
+
+    // 3) Automatic Proxy Fallback: Stream upload through Next.js proxy to Django -> S3
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("filename", file.name);
+
+    return new Promise<string>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      xhr.open("PUT", pres.upload_url, true);
-      xhr.setRequestHeader(
-        "Content-Type",
-        file.type || "application/octet-stream",
-      );
+      xhr.open("POST", "/api/teacher/upload", true);
 
-      xhr.upload.onprogress = (evt) => {
-        if (!evt.lengthComputable) return;
-        const percent = Math.min(
-          99,
-          Math.floor((evt.loaded / evt.total) * 100),
-        );
-        onProgress?.({ percent, loaded: evt.loaded, total: evt.total });
-      };
+      if (xhr.upload) {
+        xhr.upload.onprogress = (e) => {
+          if (!e.lengthComputable) return;
+          const percent = Math.min(99, Math.floor((e.loaded / e.total) * 100));
+          onProgress?.({ percent, loaded: e.loaded, total: e.total });
+        };
+      }
 
       xhr.onload = () => {
+        let json: any = {};
+        try {
+          json = JSON.parse(xhr.responseText || "{}");
+        } catch {}
+
         if (xhr.status >= 200 && xhr.status < 300) {
           onProgress?.({ percent: 100, loaded: file.size, total: file.size });
-          resolve();
+          resolve(json.url || json.key || pres?.key || `lessons/${file.name}`);
         } else {
-          reject(new Error(`S3 upload failed (${xhr.status})`));
+          reject(
+            new Error(json?.error || json?.detail || `Upload failed (${xhr.status})`),
+          );
         }
       };
 
-      xhr.onerror = () => reject(new Error("Network error during S3 upload"));
-      xhr.send(file);
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.send(formData);
     });
-
-    return pres.key as string;
   }
 
   function uploadWithProgress<T = any>({
