@@ -49,8 +49,7 @@ export function MeetingControlBar({
   unreadChatCount = 0,
 }: MeetingControlBarProps) {
   const call = useCall();
-  const { useHasPermissions, useIsCallRecordingInProgress } = useCallStateHooks();
-  const { canScreenShare, canRecord, canMuteUsers } = useMeetingPermissions();
+  const { isHost, canScreenShare, canRecord, canMuteUsers } = useMeetingPermissions();
 
   const isRecording = useIsCallRecordingInProgress();
   const [isTogglingRecord, setIsTogglingRecord] = useState(false);
@@ -61,6 +60,10 @@ export function MeetingControlBar({
 
   const handleToggleRecord = async () => {
     if (!call) return;
+    if (!isHost || !canRecord) {
+      toast.error("Only the host can record this meeting");
+      return;
+    }
     setIsTogglingRecord(true);
     try {
       if (isRecording) {
@@ -159,8 +162,8 @@ export function MeetingControlBar({
           </button>
         )}
 
-        {/* ── Record Button (Host/Authorized) ── */}
-        {canRecord && (
+        {/* ── Record Button (Verified Host Only) ── */}
+        {isHost && canRecord && (
           <button
             onClick={handleToggleRecord}
             disabled={isTogglingRecord}

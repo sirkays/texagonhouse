@@ -23,11 +23,44 @@ export default function LivestreamChat({ isHost = false }: LivestreamChatProps) 
   const call = useCall();
   const { data: session } = useSession();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!call) return;
+
+    // 1. Initial sync from room custom data
+    const roomHistory = call.state?.custom?.chat_history;
+    if (Array.isArray(roomHistory) && roomHistory.length > 0) {
+      setMessages((prev) => {
+        const map = new Map<string, ChatMessage>();
+        prev.forEach((m) => map.set(m.id, m));
+        roomHistory.forEach((m: any) => {
+          if (m?.id && !map.has(m.id)) {
+            map.set(m.id, {
+              id: m.id,
+              text: m.text || "",
+              senderName: m.sender || m.senderName || "Participant",
+              senderId: m.senderId || "unknown",
+              role: m.role || "viewer",
+              timestamp: Number(m.timestamp || Date.now()),
+            });
+          }
+        });
+        return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
+      });
+    }
+
+    // 2. Request chat history from peers
+    const timer = setTimeout(() => {
+      const myId = String(session?.user?.id || "viewer");
+      call.sendCustomEvent({
+        type: "request_chat_history",
+        requestedBy: myId,
+      } as any).catch(() => {});
+    }, 500);
 
     const handleCustomEvent = (event: any) => {
       const eventType = event.custom?.type;
@@ -44,14 +77,58 @@ export default function LivestreamChat({ isHost = false }: LivestreamChatProps) 
           if (prev.some((m) => m.id === data.id)) return prev;
           return [...prev, data as ChatMessage];
         });
+      } else if (eventType === "request_chat_history") {
+        const requestedBy = event.custom?.requestedBy;
+        const myId = String(session?.user?.id || "");
+        if (requestedBy && requestedBy !== myId && messagesRef.current.length > 0) {
+          call.sendCustomEvent({
+            type: "chat_history_sync",
+            targetUserId: requestedBy,
+            messages: messagesRef.current.map((m) => ({
+              id: m.id,
+              sender: m.senderName,
+              senderName: m.senderName,
+              senderId: m.senderId,
+              text: m.text,
+              role: m.role,
+              timestamp: m.timestamp,
+            })),
+          } as any).catch(() => {});
+        }
+      } else if (eventType === "chat_history_sync") {
+        const targetUserId = event.custom?.targetUserId;
+        const myId = String(session?.user?.id || "");
+        if (!targetUserId || targetUserId === myId || targetUserId === "all") {
+          const incomingList = event.custom?.messages;
+          if (Array.isArray(incomingList) && incomingList.length > 0) {
+            setMessages((prev) => {
+              const map = new Map<string, ChatMessage>();
+              prev.forEach((m) => map.set(m.id, m));
+              incomingList.forEach((m: any) => {
+                if (m?.id && !map.has(m.id)) {
+                  map.set(m.id, {
+                    id: m.id,
+                    text: m.text || "",
+                    senderName: m.senderName || m.sender || "Participant",
+                    senderId: m.senderId || "unknown",
+                    role: m.role || "viewer",
+                    timestamp: Number(m.timestamp || Date.now()),
+                  });
+                }
+              });
+              return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
+            });
+          }
+        }
       }
     };
 
     const unsubscribe = call.on("custom", handleCustomEvent);
     return () => {
+      clearTimeout(timer);
       unsubscribe();
     };
-  }, [call]);
+  }, [call, session?.user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

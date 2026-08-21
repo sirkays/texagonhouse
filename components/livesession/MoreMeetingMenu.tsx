@@ -47,9 +47,17 @@ export function MoreMeetingMenu({
   allowedEmojis,
   unreadChatCount = 0,
 }: MoreMeetingMenuProps) {
+  const call = useCall();
   const [isAudioLocked, setIsAudioLocked] = useState(false);
   const [isVideoLocked, setIsVideoLocked] = useState(false);
-  const call = useCall();
+
+  useEffect(() => {
+    if (!call) return;
+    const custom = call.state.custom || {};
+    if (custom.is_audio_locked !== undefined) setIsAudioLocked(!!custom.is_audio_locked);
+    if (custom.is_video_locked !== undefined) setIsVideoLocked(!!custom.is_video_locked);
+  }, [call, call?.state?.custom]);
+
   const { useIsCallRecordingInProgress } = useCallStateHooks();
   const isRecording = useIsCallRecordingInProgress();
   const { isHost, canMuteUsers, canEndCall, canRecord } = useMeetingPermissions();
@@ -80,8 +88,23 @@ export function MoreMeetingMenu({
   const handleToggleAudioLock = async () => {
     if (!call) return;
     try {
-      if (!isAudioLocked) {
-        // Disable: mute + revoke permission (participants CANNOT unmute)
+      const nextState = !isAudioLocked;
+      setIsAudioLocked(nextState);
+
+      await call.update({
+        custom: {
+          ...(call.state.custom || {}),
+          is_audio_locked: nextState,
+        },
+      });
+
+      await call.sendCustomEvent({
+        type: 'room_policy_state',
+        is_audio_locked: nextState,
+        is_video_locked: isVideoLocked,
+      } as any);
+
+      if (nextState) {
         await call.muteAllUsers('audio');
         const participants = call.state.participants;
         const remote = participants.filter((p: any) => !p.isLocalParticipant);
@@ -93,10 +116,8 @@ export function MoreMeetingMenu({
             });
           } catch {}
         }
-        setIsAudioLocked(true);
-        toast.success('Disabled all audio — participants cannot unmute');
+        toast.success('Disabled all audio — new participants will join with audio disabled');
       } else {
-        // Enable: grant permission back (participants CAN unmute)
         const participants = call.state.participants;
         const remote = participants.filter((p: any) => !p.isLocalParticipant);
         for (const p of remote) {
@@ -107,7 +128,6 @@ export function MoreMeetingMenu({
             });
           } catch {}
         }
-        setIsAudioLocked(false);
         toast.success('Enabled all audio — participants can now unmute');
       }
     } catch (err: any) {
@@ -119,8 +139,23 @@ export function MoreMeetingMenu({
   const handleToggleVideoLock = async () => {
     if (!call) return;
     try {
-      if (!isVideoLocked) {
-        // Disable: mute + revoke permission (participants CANNOT re-enable)
+      const nextState = !isVideoLocked;
+      setIsVideoLocked(nextState);
+
+      await call.update({
+        custom: {
+          ...(call.state.custom || {}),
+          is_video_locked: nextState,
+        },
+      });
+
+      await call.sendCustomEvent({
+        type: 'room_policy_state',
+        is_audio_locked: isAudioLocked,
+        is_video_locked: nextState,
+      } as any);
+
+      if (nextState) {
         await call.muteAllUsers('video');
         const participants = call.state.participants;
         const remote = participants.filter((p: any) => !p.isLocalParticipant);
@@ -132,10 +167,8 @@ export function MoreMeetingMenu({
             });
           } catch {}
         }
-        setIsVideoLocked(true);
-        toast.success('Disabled all video — participants cannot re-enable');
+        toast.success('Disabled all video — new participants will join with camera disabled');
       } else {
-        // Enable: grant permission back (participants CAN enable camera)
         const participants = call.state.participants;
         const remote = participants.filter((p: any) => !p.isLocalParticipant);
         for (const p of remote) {
@@ -146,7 +179,6 @@ export function MoreMeetingMenu({
             });
           } catch {}
         }
-        setIsVideoLocked(false);
         toast.success('Enabled all video — participants can now enable camera');
       }
     } catch (err: any) {

@@ -19,7 +19,7 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Spinner } from "../ui/spinner";
-import { MoreVertical, MicOff, UserX, ShieldAlert, Unlock, VideoOff, Video, Mic } from "lucide-react";
+import { MoreVertical, MicOff, UserX, ShieldAlert, Unlock, VideoOff, Video, Mic, Pin, PinOff, MonitorOff } from "lucide-react";
 import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 
 interface ParticipantActionsMenuProps {
@@ -47,6 +47,9 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
   const hasAudio = !!participant.audioStream;
   const hasVideo = !!participant.videoStream;
 
+  const isSharingScreen = !!participant.screenShareStream;
+  const isPinned = !!participant.isPinned;
+
   // Toggle mic: disable if on, enable if off
   const handleToggleMic = async () => {
     if (!call) return;
@@ -54,23 +57,23 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
     try {
       if (hasAudio) {
         // Disable: mute + revoke permission
-        await call.muteUser(participant.userId, 'audio');
+        await call.muteUser(participant.userId, "audio");
         await (call as any).updateUserPermissions({
           user_id: participant.userId,
-          revoke_permissions: ['send-audio'],
+          revoke_permissions: ["send-audio"],
         });
         toast.success(`Disabled mic for ${participantName}`);
       } else {
         // Enable: grant permission back
         await (call as any).updateUserPermissions({
           user_id: participant.userId,
-          grant_permissions: ['send-audio'],
+          grant_permissions: ["send-audio"],
         });
         toast.success(`Enabled mic for ${participantName}`);
       }
     } catch (err: any) {
-      console.error('[Moderation] Mic toggle error:', err);
-      toast.error(err?.message || 'Unable to toggle mic.');
+      console.error("[Moderation] Mic toggle error:", err);
+      toast.error(err?.message || "Unable to toggle mic.");
     } finally {
       setIsLoading(false);
     }
@@ -83,23 +86,61 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
     try {
       if (hasVideo) {
         // Disable: mute + revoke permission
-        await call.muteUser(participant.userId, 'video');
+        await call.muteUser(participant.userId, "video");
         await (call as any).updateUserPermissions({
           user_id: participant.userId,
-          revoke_permissions: ['send-video'],
+          revoke_permissions: ["send-video"],
         });
         toast.success(`Disabled camera for ${participantName}`);
       } else {
         // Enable: grant permission back
         await (call as any).updateUserPermissions({
           user_id: participant.userId,
-          grant_permissions: ['send-video'],
+          grant_permissions: ["send-video"],
         });
         toast.success(`Enabled camera for ${participantName}`);
       }
     } catch (err: any) {
-      console.error('[Moderation] Camera toggle error:', err);
-      toast.error(err?.message || 'Unable to toggle camera.');
+      console.error("[Moderation] Camera toggle error:", err);
+      toast.error(err?.message || "Unable to toggle camera.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Stop screen share for participant
+  const handleStopScreenShare = async () => {
+    if (!call) return;
+    setIsLoading(true);
+    try {
+      await call.muteUser(participant.userId, "screenshare");
+      await (call as any).updateUserPermissions({
+        user_id: participant.userId,
+        revoke_permissions: ["send-screenshare"],
+      });
+      toast.success(`Stopped screen sharing for ${participantName}`);
+    } catch (err: any) {
+      console.error("[Moderation] Stop screen share error:", err);
+      toast.error(err?.message || "Unable to stop screen share.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Toggle Pin
+  const handleTogglePin = async () => {
+    if (!call) return;
+    setIsLoading(true);
+    try {
+      if (isPinned) {
+        await call.unpin(participant.sessionId);
+        toast.info(`Unpinned ${participantName}`);
+      } else {
+        await call.pin(participant.sessionId);
+        toast.info(`Pinned ${participantName}`);
+      }
+    } catch (err: any) {
+      console.error("[Moderation] Pin toggle error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -147,33 +188,58 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
         >
           <MoreVertical className="w-4 h-4" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="border border-white/15 bg-zinc-900/98 backdrop-blur-xl text-white rounded-xl p-1.5 shadow-2xl min-w-[160px] z-50">
+        <DropdownMenuContent className="border border-white/15 bg-zinc-900/98 backdrop-blur-xl text-white rounded-xl p-1.5 shadow-2xl min-w-[170px] z-50">
+          {/* Pin / Unpin */}
+          <DropdownMenuItem
+            onClick={handleTogglePin}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-zinc-200"
+          >
+            {isPinned ? <PinOff className="w-3.5 h-3.5 text-zinc-400" /> : <Pin className="w-3.5 h-3.5 text-sky-400" />}
+            <span>{isPinned ? "Unpin Tile" : "Pin Tile"}</span>
+          </DropdownMenuItem>
+
+          {/* Toggle Mic */}
           {canMuteUsers && (
             <DropdownMenuItem
               onClick={handleToggleMic}
               disabled={isLoading}
               className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer ${
-                hasAudio ? 'text-amber-400' : 'text-emerald-300'
+                hasAudio ? "text-amber-400" : "text-emerald-300"
               }`}
             >
               {hasAudio ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              <span>{hasAudio ? 'Disable Mic' : 'Enable Mic'}</span>
+              <span>{hasAudio ? "Disable Mic" : "Enable Mic"}</span>
             </DropdownMenuItem>
           )}
 
+          {/* Toggle Camera */}
           {canMuteUsers && (
             <DropdownMenuItem
               onClick={handleToggleCamera}
               disabled={isLoading}
               className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer ${
-                hasVideo ? 'text-amber-400' : 'text-emerald-300'
+                hasVideo ? "text-amber-400" : "text-emerald-300"
               }`}
             >
               {hasVideo ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
-              <span>{hasVideo ? 'Disable Camera' : 'Enable Camera'}</span>
+              <span>{hasVideo ? "Disable Camera" : "Enable Camera"}</span>
             </DropdownMenuItem>
           )}
 
+          {/* Stop Screen Share */}
+          {isSharingScreen && canMuteUsers && (
+            <DropdownMenuItem
+              onClick={handleStopScreenShare}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer text-amber-400"
+            >
+              <MonitorOff className="w-3.5 h-3.5" />
+              <span>Stop Screen Share</span>
+            </DropdownMenuItem>
+          )}
+
+          {/* Kick */}
           {canKickUsers && (
             <DropdownMenuItem
               onClick={() => setIsKickDialogOpen(true)}
@@ -185,6 +251,7 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
             </DropdownMenuItem>
           )}
 
+          {/* Block */}
           {canBlockUsers && (
             <DropdownMenuItem
               onClick={() => setIsBlockDialogOpen(true)}

@@ -41,17 +41,24 @@ export function useMeetingPermissions(): MeetingPermissions {
   const userId = session?.user?.id ? String(session.user.id) : null;
   const userRole = session?.user?.role?.toLowerCase() || "";
 
-  // isHost: for display/layout decisions only (e.g. show host panel header)
-  // Does NOT grant Stream moderation capabilities by itself
+  // isHost: verified host (call creator, role=host/admin in Stream, or teacher/admin in session)
   const isHost = useMemo(() => {
+    const localRole = call?.state?.localParticipant?.role?.toLowerCase() || "";
+    if (localRole === "host" || localRole === "admin") return true;
+
     if (!session?.user) return false;
     const createdById = call?.state?.createdBy?.id;
-    if (createdById && userId && createdById === userId) return true;
-    if (userRole.includes("teacher") || userRole.includes("instructor") || userRole === "tutor" || userRole.includes("admin")) {
+    if (createdById && userId && String(createdById) === String(userId)) return true;
+    if (
+      userRole.includes("teacher") ||
+      userRole.includes("instructor") ||
+      userRole === "tutor" ||
+      userRole.includes("admin")
+    ) {
       return true;
     }
     return false;
-  }, [call?.state?.createdBy?.id, userId, userRole, session?.user]);
+  }, [call?.state?.createdBy?.id, call?.state?.localParticipant?.role, userId, userRole, session?.user]);
 
   const isBrowserScreenShareSupported = useMemo(() => {
     return (
@@ -64,17 +71,17 @@ export function useMeetingPermissions(): MeetingPermissions {
 
   return {
     isHost,
-    // Moderation: gated on real Stream capability only
-    canMuteUsers: hasMutePermission,
-    canKickUsers: hasKickPermission,
-    canBlockUsers: hasBlockPermission,
-    canEndCall: hasEndCallPermission,
+    // Moderation and recording: strictly gated on isHost
+    canMuteUsers: isHost && hasMutePermission,
+    canKickUsers: isHost && hasKickPermission,
+    canBlockUsers: isHost && hasBlockPermission,
+    canEndCall: isHost && hasEndCallPermission,
     canScreenShare: isBrowserScreenShareSupported && hasScreenSharePermission,
-    canRecord: hasStartRecordPermission,
-    canGrantAudio: hasUpdateCallPermission || hasMutePermission,
-    canGrantVideo: hasUpdateCallPermission || hasMutePermission,
-    canRevokeAudio: hasMutePermission,
-    canRevokeVideo: hasMutePermission,
+    canRecord: isHost && (hasStartRecordPermission || isHost),
+    canGrantAudio: isHost && (hasUpdateCallPermission || hasMutePermission),
+    canGrantVideo: isHost && (hasUpdateCallPermission || hasMutePermission),
+    canRevokeAudio: isHost && hasMutePermission,
+    canRevokeVideo: isHost && hasMutePermission,
     ownCapabilities,
   };
 }

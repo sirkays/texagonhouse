@@ -97,15 +97,21 @@ const MeetingSetup = ({
         }
       }
 
-      // Re-grant host's own permissions to ensure host is never locked out
-      if (userId) {
-        try {
-          await (call as any).updateUserPermissions({
-            user_id: userId,
-            grant_permissions: ['send-audio', 'send-video'],
-          });
-        } catch {}
-      }
+      // Update call custom state to persist lock for newcomers
+      await call.update({
+        custom: {
+          ...(call.state.custom || {}),
+          is_audio_locked: roomMicPolicy === 'locked',
+          is_video_locked: roomCamPolicy === 'locked',
+        },
+      });
+
+      // Broadcast custom policy event
+      await call.sendCustomEvent({
+        type: 'room_policy_state',
+        is_audio_locked: roomMicPolicy === 'locked',
+        is_video_locked: roomCamPolicy === 'locked',
+      } as any);
 
       toast.success(roomMicPolicy === 'locked' || roomCamPolicy === 'locked'
         ? 'Room policy applied — participants locked.'
@@ -125,21 +131,43 @@ const MeetingSetup = ({
     callStartsAt && new Date(callStartsAt) > new Date();
   const callHasEnded = !!callEndedAt;
 
+  const isAudioLockedInRoom = !isHost && !!call?.state?.custom?.is_audio_locked;
+  const isVideoLockedInRoom = !isHost && !!call?.state?.custom?.is_video_locked;
+
   useEffect(() => {
-    if (isMicCamToggled) {
-      call.camera.disable();
+    if (isAudioLockedInRoom) {
       call.microphone.disable();
       setIsMuted(true);
+    }
+    if (isVideoLockedInRoom) {
+      call.camera.disable();
       setIsVideoDisabled(true);
+    }
+  }, [isAudioLockedInRoom, isVideoLockedInRoom, call.camera, call.microphone]);
+
+  useEffect(() => {
+    if (isMicCamToggled || isAudioLockedInRoom || isVideoLockedInRoom) {
+      if (isAudioLockedInRoom || isMicCamToggled) {
+        call.microphone.disable();
+        setIsMuted(true);
+      }
+      if (isVideoLockedInRoom || isMicCamToggled) {
+        call.camera.disable();
+        setIsVideoDisabled(true);
+      }
     } else {
       call.camera.enable();
       call.microphone.enable();
       setIsMuted(false);
       setIsVideoDisabled(false);
     }
-  }, [isMicCamToggled, call.camera, call.microphone]);
+  }, [isMicCamToggled, isAudioLockedInRoom, isVideoLockedInRoom, call.camera, call.microphone]);
 
   const toggleMic = () => {
+    if (isAudioLockedInRoom) {
+      toast.error("Microphones are locked by the host");
+      return;
+    }
     if (isMuted) {
       call.microphone.enable();
       setIsMuted(false);
@@ -150,6 +178,10 @@ const MeetingSetup = ({
   };
 
   const toggleVideo = () => {
+    if (isVideoLockedInRoom) {
+      toast.error("Cameras are locked by the host");
+      return;
+    }
     if (isVideoDisabled) {
       call.camera.enable();
       setIsVideoDisabled(false);

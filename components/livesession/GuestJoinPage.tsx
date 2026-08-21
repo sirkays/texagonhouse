@@ -309,6 +309,9 @@ const GuestMeetingSetup = ({
 
   const userInitial = guestName.charAt(0).toUpperCase();
 
+  const isAudioLockedInRoom = !!call?.state?.custom?.is_audio_locked;
+  const isVideoLockedInRoom = !!call?.state?.custom?.is_video_locked;
+
   // Disable mic and camera on mount (default OFF)
   useEffect(() => {
     call.microphone.disable();
@@ -316,6 +319,10 @@ const GuestMeetingSetup = ({
   }, [call]);
 
   const toggleMic = () => {
+    if (isAudioLockedInRoom) {
+      toast.error("Microphones are locked by the host");
+      return;
+    }
     if (isMuted) {
       call.microphone.enable();
       setIsMuted(false);
@@ -326,6 +333,10 @@ const GuestMeetingSetup = ({
   };
 
   const toggleVideo = () => {
+    if (isVideoLockedInRoom) {
+      toast.error("Cameras are locked by the host");
+      return;
+    }
     if (isVideoDisabled) {
       call.camera.enable();
       setIsVideoDisabled(false);
