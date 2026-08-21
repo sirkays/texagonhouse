@@ -72,25 +72,51 @@ const PublicMeetingPage = () => {
   // Step 1: Check if meeting is public
   useEffect(() => {
     if (!id) return;
+    let isMounted = true;
+
     const checkMeetingAccess = async () => {
-      try {
-        const res = await fetch(`/api/meeting/${id}/info`);
-        if (res.ok) {
-          const data = await res.json();
-          setMeetingInfo(data);
-        } else if (res.status === 404) {
-          setMeetingInfo({ is_public: false, not_found: true });
-        } else {
-          setMeetingInfo({ is_public: false, is_room_open: true });
+      let lastData: any = null;
+
+      // Retry up to 3 times with backoff to account for meeting creation propagation
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 500 * attempt));
         }
-      } catch {
-        setMeetingInfo({ is_public: false, is_room_open: true });
-      } finally {
+        if (!isMounted) return;
+
+        try {
+          const res = await fetch(`/api/meeting/${id}/info`);
+          if (res.ok) {
+            const data = await res.json();
+            lastData = data;
+            break;
+          } else if (res.status === 404) {
+            lastData = { is_public: false, not_found: true };
+          } else {
+            lastData = { is_public: false, is_room_open: true };
+          }
+        } catch {
+          lastData = { is_public: false, is_room_open: true };
+        }
+      }
+
+      if (isMounted) {
+        // If the current user is authenticated and a host/teacher, don't mark not_found prematurely
+        if (lastData?.not_found && status === "authenticated" && isHostUser) {
+          setMeetingInfo({ is_public: true, is_room_open: true });
+        } else {
+          setMeetingInfo(lastData || { is_public: false, is_room_open: true });
+        }
         setIsCheckingPublic(false);
       }
     };
+
     checkMeetingAccess();
-  }, [id]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, status, isHostUser]);
 
   // Step 2: For authenticated users, create StreamVideoClient and fetch the call
   // STABILIZED: Only create client ONCE per user session. Removed meetingInfo?.call_type
@@ -319,7 +345,11 @@ const PublicMeetingPage = () => {
   }
 
   // ── MEETING NOT FOUND / INVALID MEETING LINK ──
-  if (meetingInfo?.not_found) {
+  if (
+    !isCheckingPublic &&
+    meetingInfo?.not_found &&
+    (status === "unauthenticated" || (!isCallLoading && !call && !isHostUser))
+  ) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f1117] gap-5 text-white p-6">
         <div className="bg-[#1a1d26] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">

@@ -50,7 +50,7 @@ const initialValues = {
   title: "",
   duration: 60,
   sessionType: "default" as "default" | "livestream",
-  meetingAccess: "private" as "public" | "private",
+  meetingAccess: "public" as "public" | "private",
 };
 
 const MenuItemCard = ({title, Icon, color}: MenuItemCardProps) => {
@@ -189,7 +189,10 @@ const MainMenu = () => {
 
       // 1. Create Stream call via server action (REST API)
       try {
-        await createStreamCallServer(id, startsAt, description, callType, isPublic);
+        const srvRes = await createStreamCallServer(id, startsAt, description, callType, isPublic);
+        if (srvRes && !srvRes.success) {
+          console.warn("[MainMenu] Server call creation warning:", srvRes.error);
+        }
       } catch (srvErr) {
         console.warn("[MainMenu] Server call creation error:", srvErr);
       }
