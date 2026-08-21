@@ -214,7 +214,7 @@ export function MeetingControlBar({
           <div className="relative">
             <MessageCircle size={20} strokeWidth={2.5} />
             {unreadChatCount > 0 && !showChat && (
-              <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-lg animate-pulse border-2 border-[#1a1c21]">
+              <span className="absolute -top-1.5 -right-2 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-lg animate-pulse border-2 border-[#1a1c21] shrink-0">
                 {unreadChatCount > 99 ? "99+" : unreadChatCount}
               </span>
             )}

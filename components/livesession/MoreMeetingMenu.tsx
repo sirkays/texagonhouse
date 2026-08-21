@@ -245,7 +245,7 @@ export function MoreMeetingMenu({
             <span>Chat</span>
           </div>
           {unreadChatCount > 0 && !showChat ? (
-            <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-[#EF7B55] text-white animate-pulse">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-extrabold rounded-full bg-[#EF7B55] text-white animate-pulse shrink-0">
               {unreadChatCount > 99 ? "99+" : unreadChatCount}
             </span>
           ) : showChat ? (

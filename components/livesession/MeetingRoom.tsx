@@ -580,9 +580,22 @@ const MeetingRoom = () => {
 
   useEffect(() => {
     if (callingState === CallingState.JOINED && call) {
-      applyToCall(call);
+      const custom = call.state?.custom || {};
+      const isAudioLockedInRoom = !isHost && (!!custom.is_audio_locked || isAudioLocked);
+      const isVideoLockedInRoom = !isHost && (!!custom.is_video_locked || isVideoLocked);
+
+      if (isAudioLockedInRoom) {
+        call.microphone.disable().catch(() => {});
+      }
+      if (isVideoLockedInRoom) {
+        call.camera.disable().catch(() => {});
+      }
+
+      if (isHost || (!isAudioLockedInRoom && !isVideoLockedInRoom)) {
+        applyToCall(call);
+      }
     }
-  }, [callingState, call, applyToCall]);
+  }, [callingState, call, applyToCall, isHost, isAudioLocked, isVideoLocked, call?.state?.custom]);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -996,9 +1009,7 @@ const MeetingRoom = () => {
   useEffect(() => {
     if (!call || !isHost) return;
 
-    const handleParticipantJoined = async (event: any) => {
-      const joinedUser = event.participant?.user || event.user;
-      const userId = joinedUser?.id || event.participant?.userId;
+    const enforceLockOnUser = async (userId: string) => {
       if (!userId || userId === localParticipant?.userId) return;
 
       if (isAudioLockedRef.current) {
@@ -1026,9 +1037,20 @@ const MeetingRoom = () => {
       }
     };
 
+    const handleParticipantJoined = (event: any) => {
+      const joinedUser = event.participant?.user || event.user;
+      const userId = joinedUser?.id || event.participant?.userId;
+      if (userId) enforceLockOnUser(userId);
+    };
+
     call.on("call.participant_joined", handleParticipantJoined);
+    // @ts-ignore
+    call.on("call.session_participant_joined", handleParticipantJoined);
+
     return () => {
       call.off("call.participant_joined", handleParticipantJoined);
+      // @ts-ignore
+      call.off("call.session_participant_joined", handleParticipantJoined);
     };
   }, [call, isHost, localParticipant?.userId]);
 
@@ -1399,83 +1421,67 @@ const MeetingRoom = () => {
   // ── Layout Element ──
   const callLayoutElement = useMemo(() => {
     if (someoneSharing) {
-      const screenShareParticipant = allParticipantsRaw.find((p) => p.screenShareStream);
       const activeCameraParticipant =
-        (screenShareParticipant && !screenShareParticipant.isLocalParticipant ? screenShareParticipant : dominantSpeaker) || null;
+        allParticipantsRaw.find((p) => p.videoStream && !p.isLocalParticipant) ||
+        (dominantSpeaker?.videoStream ? dominantSpeaker : null);
 
       return (
         <div
           ref={screenShareContainerRef}
-          className="w-full h-full relative group/screenshare flex flex-col items-center justify-center bg-[#121316] rounded-2xl overflow-hidden border border-white/10"
+          className="w-full h-full relative group/screenshare flex flex-col items-center justify-center bg-[#121316] rounded-2xl overflow-hidden border border-white/10 screenshare-dominant"
         >
           {/* Audio for all participants rendered globally */}
           <ParticipantsAudio participants={allParticipantsRaw} />
 
-          {/* Main Presentation Screen */}
-          {screenShareParticipant ? (
-            <div className="w-full h-full relative flex items-center justify-center p-1 sm:p-2">
-              <div className="w-full h-full relative rounded-xl overflow-hidden bg-black flex items-center justify-center">
+          {/* Clean presentation stage: Stream's SpeakerLayout with participant bar disabled */}
+          <div className="w-full h-full relative flex items-center justify-center">
+            <SpeakerLayout participantsBarPosition={null} />
+
+            {/* Presenter Status Badge */}
+            <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-white text-xs font-semibold shadow-xl">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>
+                {isScreenSharing ? "You are presenting" : "Screen presentation active"}
+              </span>
+              {isScreenSharing && (
+                <button
+                  onClick={async () => {
+                    if (callRef.current) {
+                      try {
+                        await callRef.current.screenShare.disable();
+                      } catch {}
+                    }
+                  }}
+                  className="ml-2 px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold transition cursor-pointer shadow-sm"
+                >
+                  Stop Presenting
+                </button>
+              )}
+            </div>
+
+            {/* Floating PIP Tile for Active Speaker/Presenter Camera (Google Meet style) */}
+            {activeCameraParticipant && activeCameraParticipant.videoStream && (
+              <div className="absolute bottom-4 right-4 z-20 w-36 sm:w-48 h-24 sm:h-32 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-zinc-900 pointer-events-auto transition-all hover:scale-105">
                 <ParticipantView
-                  participant={screenShareParticipant}
-                  trackType="screenShareTrack"
-                  className="w-full h-full object-contain"
+                  participant={activeCameraParticipant}
+                  className="w-full h-full object-cover"
                   muteAudio
                 />
+                <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-semibold text-white truncate max-w-[80%]">
+                  {activeCameraParticipant.name || "Speaker"}
+                </div>
               </div>
+            )}
 
-              {/* Presenter Status Badge */}
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-white text-xs font-semibold shadow-xl">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>
-                  {screenShareParticipant.isLocalParticipant
-                    ? "You are presenting"
-                    : `${screenShareParticipant.name || "Participant"} is presenting`}
-                </span>
-                {screenShareParticipant.isLocalParticipant && (
-                  <button
-                    onClick={async () => {
-                      if (callRef.current) {
-                        try {
-                          await callRef.current.screenShare.disable();
-                        } catch {}
-                      }
-                    }}
-                    className="ml-2 px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold transition cursor-pointer shadow-sm"
-                  >
-                    Stop Presenting
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center text-zinc-500 gap-2">
-              <Monitor size={36} className="text-zinc-600 animate-pulse" />
-              <p className="text-sm font-medium">Connecting presentation...</p>
-            </div>
-          )}
-
-          {/* Floating PIP Tile for Active Speaker/Presenter Camera (Google Meet style) */}
-          {activeCameraParticipant && activeCameraParticipant.videoStream && (
-            <div className="absolute bottom-4 right-4 z-20 w-36 sm:w-48 h-24 sm:h-32 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-zinc-900 pointer-events-auto transition-all hover:scale-105">
-              <ParticipantView
-                participant={activeCameraParticipant}
-                className="w-full h-full object-cover"
-                muteAudio
-              />
-              <div className="absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-sm text-[10px] font-semibold text-white truncate max-w-[80%]">
-                {activeCameraParticipant.name || "Speaker"}
-              </div>
-            </div>
-          )}
-
-          {/* Fullscreen Button */}
-          <button
-            onClick={toggleFullscreen}
-            title={isFullscreen ? "Exit fullscreen" : "View fullscreen"}
-            className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white text-xs font-medium backdrop-blur-md border border-white/15 opacity-0 group-hover/screenshare:opacity-100 transition-all duration-200 shadow-xl cursor-pointer"
-          >
-            {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-          </button>
+            {/* Fullscreen Button */}
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit fullscreen" : "View fullscreen"}
+              className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/80 hover:bg-black/95 text-white text-xs font-medium backdrop-blur-md border border-white/15 opacity-0 group-hover/screenshare:opacity-100 transition-all duration-200 shadow-xl cursor-pointer"
+            >
+              {isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+            </button>
+          </div>
         </div>
       );
     }
@@ -1486,7 +1492,7 @@ const MeetingRoom = () => {
         <PaginatedGridLayout groupSize={groupSize} />
       </div>
     );
-  }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen, allParticipantsRaw, dominantSpeaker]);
+  }, [someoneSharing, isScreenSharing, groupSize, isFullscreen, toggleFullscreen, allParticipantsRaw, dominantSpeaker]);
 
   // Active speaker tracking with auto-clear
   useEffect(() => {
@@ -1591,7 +1597,7 @@ const MeetingRoom = () => {
             <MessageCircle size={16} />
             <span className="hidden sm:inline">Chat</span>
             {unreadChatCount > 0 && !showChat && (
-              <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-red-500 text-white animate-pulse">
+              <span className="w-5 h-5 flex items-center justify-center text-[10px] font-extrabold rounded-full bg-red-500 text-white animate-pulse shrink-0">
                 {unreadChatCount > 99 ? "99+" : unreadChatCount}
               </span>
             )}
@@ -1602,7 +1608,7 @@ const MeetingRoom = () => {
               setShowParticipants((prev) => !prev);
               if (showChat) setShowChat(false);
             }}
-            className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
               showParticipants
                 ? "bg-[#EF7B55] border-[#EF7B55] text-white"
                 : "bg-white/10 hover:bg-white/20 border-white/15 text-white"
@@ -1610,7 +1616,7 @@ const MeetingRoom = () => {
           >
             <Users size={16} />
             <span className="hidden sm:inline">People</span>
-            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-black/40">
+            <span className="w-5 h-5 flex items-center justify-center text-[10px] font-bold rounded-full bg-black/40 text-white shrink-0">
               {uniqueParticipantCount}
             </span>
           </button>
