@@ -50,6 +50,7 @@ export function MeetingControlBar({
 }: MeetingControlBarProps) {
   const call = useCall();
   const { isHost, canScreenShare, canRecord, canMuteUsers } = useMeetingPermissions();
+  const { useIsCallRecordingInProgress, useHasPermissions } = useCallStateHooks();
 
   const isRecording = useIsCallRecordingInProgress();
   const [isTogglingRecord, setIsTogglingRecord] = useState(false);
