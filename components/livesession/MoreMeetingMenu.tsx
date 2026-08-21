@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
 import { toast } from "sonner";
 import {
