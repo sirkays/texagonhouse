@@ -33,6 +33,7 @@ interface MeetingInfo {
   host_id?: string;
   ended_at?: string | null;
   status?: string;
+  not_found?: boolean;
 }
 
 /**
@@ -77,6 +78,8 @@ const PublicMeetingPage = () => {
         if (res.ok) {
           const data = await res.json();
           setMeetingInfo(data);
+        } else if (res.status === 404) {
+          setMeetingInfo({ is_public: false, not_found: true });
         } else {
           setMeetingInfo({ is_public: false, is_room_open: true });
         }
@@ -289,6 +292,29 @@ const PublicMeetingPage = () => {
         >
           Return to Dashboard
         </a>
+      </div>
+    );
+  }
+
+  // ── MEETING NOT FOUND / INVALID MEETING LINK ──
+  if (meetingInfo?.not_found) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f1117] gap-5 text-white p-6">
+        <div className="bg-[#1a1d26] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+          <div className="w-16 h-16 rounded-2xl bg-zinc-700/50 flex items-center justify-center mx-auto mb-4 text-zinc-300">
+            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Meeting Not Found</h2>
+          <p className="text-zinc-400 text-sm mt-1">This meeting does not exist or has been deleted. Please check with your host for a valid link.</p>
+          <a
+            href="/"
+            className="mt-5 inline-block w-full px-6 py-3 bg-[#2a2d36] hover:bg-[#3a3d46] text-white font-semibold text-sm rounded-xl transition-all border border-white/10"
+          >
+            Back to Home
+          </a>
+        </div>
       </div>
     );
   }
