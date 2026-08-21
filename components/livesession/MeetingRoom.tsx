@@ -1486,6 +1486,8 @@ const MeetingRoom = () => {
         <PaginatedGridLayout groupSize={groupSize} />
       </div>
     );
+  }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen, allParticipantsRaw, dominantSpeaker]);
+
   // Active speaker tracking with auto-clear
   useEffect(() => {
     if (dominantSpeaker && dominantSpeaker.isSpeaking && !dominantSpeaker.isLocalParticipant) {
