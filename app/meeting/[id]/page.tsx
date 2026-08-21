@@ -138,8 +138,30 @@ const PublicMeetingPage = () => {
         }
         try {
           const c = client.call(resolvedCallType, id);
-          // get() — NEVER getOrCreate(). Only the creation flow may create.
-          await c.get();
+          try {
+            await c.get();
+          } catch (getErr: any) {
+            // If the user is the host/teacher/creator, create the call if it doesn't exist yet on Stream
+            if (
+              isHostUser ||
+              (session?.user as any)?.role?.toLowerCase()?.includes("teacher") ||
+              (session?.user as any)?.role?.toLowerCase()?.includes("admin") ||
+              (session?.user as any)?.role?.toLowerCase()?.includes("instructor")
+            ) {
+              await c.getOrCreate({
+                data: {
+                  custom: {
+                    description: meetingInfo?.title || "Meeting",
+                    is_public: meetingInfo?.is_public ?? true,
+                    is_room_open: meetingInfo?.is_room_open ?? true,
+                  },
+                  settings_override: { backstage: { enabled: false } },
+                },
+              });
+            } else {
+              throw getErr;
+            }
+          }
 
           if (c.state.endedAt) {
             setIsCallEnded(true);

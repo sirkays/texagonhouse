@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StreamClient } from '@stream-io/node-sdk';
 
-const streamApiKey = process.env.STREAM_API_KEY ?? '';
-const streamSecretKey = process.env.STREAM_SECRET_KEY ?? '';
+const streamApiKey =
+  process.env.STREAM_API_KEY ||
+  process.env.NEXT_PUBLIC_STREAM_API_KEY ||
+  "r8t2kf97vxcy";
+const streamSecretKey =
+  process.env.STREAM_SECRET_KEY ||
+  process.env.STREAM_API_SECRET ||
+  "jykcrvb4huxh3ydazsg3dvznv9tsm8nanmcazk556fy2tkzs9agdk9gchann57mk";
 
 // Simple in-memory rate limit (per guest ID, max 10 requests per minute)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
