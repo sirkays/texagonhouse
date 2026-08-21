@@ -498,12 +498,14 @@ const MeetingRoom = () => {
     useLocalParticipant,
     useIsCallRecordingInProgress,
     useCallCustomData,
+    useDominantSpeaker,
   } = useCallStateHooks();
   const call = useCall();
   const custom = useCallCustomData();
   const callingState = useCallCallingState();
   const allParticipantsRaw = useParticipants();
   const isRecording = useIsCallRecordingInProgress();
+  const dominantSpeaker = useDominantSpeaker?.();
 
   const meetingTitle = useMemo(() => {
     const rawTitle =
@@ -1484,12 +1486,7 @@ const MeetingRoom = () => {
         <PaginatedGridLayout groupSize={groupSize} />
       </div>
     );
-  }, [someoneSharing, groupSize, isFullscreen, toggleFullscreen, allParticipantsRaw, dominantSpeaker]);
-
   // Active speaker tracking with auto-clear
-  const { useDominantSpeaker: _useDominantSpeaker } = useCallStateHooks();
-  const dominantSpeaker = _useDominantSpeaker?.();
-
   useEffect(() => {
     if (dominantSpeaker && dominantSpeaker.isSpeaking && !dominantSpeaker.isLocalParticipant) {
       setActiveSpeaker({

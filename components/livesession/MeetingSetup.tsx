@@ -59,8 +59,7 @@ const MeetingSetup = ({
     if (!call || !canMuteUsers) return;
     setIsApplyingPolicy(true);
     try {
-      const { useParticipants } = useCallStateHooks();
-      // Can't use hooks here — get participants from call state directly
+      // Get participants from call state directly
       const participants = call.state.participants;
       const remoteParticipants = participants.filter((p: any) => !p.isLocalParticipant);
       const userId = String(session?.user?.id || '');
