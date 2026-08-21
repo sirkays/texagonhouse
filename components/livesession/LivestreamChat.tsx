@@ -30,8 +30,20 @@ export default function LivestreamChat({ isHost = false }: LivestreamChatProps) 
     if (!call) return;
 
     const handleCustomEvent = (event: any) => {
-      if (event.custom?.type === "chat-message") {
-        setMessages((prev) => [...prev, event.custom.data as ChatMessage]);
+      const eventType = event.custom?.type;
+      if (eventType === "chat-message" || eventType === "chat_message") {
+        const data = event.custom.data || {
+          id: event.custom.id || Math.random().toString(36).substring(7),
+          text: event.custom.text || "",
+          senderName: event.custom.sender || event.custom.senderName || event.user?.name || "Anonymous",
+          senderId: event.custom.senderId || event.user?.id || "unknown",
+          role: event.custom.role || "viewer",
+          timestamp: event.custom.timestamp || Date.now(),
+        };
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [...prev, data as ChatMessage];
+        });
       }
     };
 
@@ -59,9 +71,21 @@ export default function LivestreamChat({ isHost = false }: LivestreamChatProps) 
     };
 
     try {
-      await call.sendCustomEvent({ type: "chat-message", data: newMessage });
+      await call.sendCustomEvent({
+        type: "chat_message",
+        id: newMessage.id,
+        sender: newMessage.senderName,
+        senderId: newMessage.senderId,
+        text: newMessage.text,
+        role: newMessage.role,
+        timestamp: newMessage.timestamp,
+        data: newMessage,
+      });
       // Add to local state since sender might not receive their own custom event
-      setMessages((prev) => [...prev, newMessage]);
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMessage.id)) return prev;
+        return [...prev, newMessage];
+      });
       setInputText("");
     } catch (err) {
       console.error("Failed to send message:", err);

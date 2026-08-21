@@ -37,6 +37,7 @@ import { EndMeetingDialog } from "./EndMeetingDialog";
 import { ParticipantActionsMenu, BlockedParticipantsSection } from "./ParticipantActionsMenu";
 import { MeetingDiagnostics } from './MeetingDiagnostics';
 import { useBrand } from "@/hooks/use-brand";
+import { ChatPopOverlay, ChatPopMessage, playChatChime } from "./ChatPopOverlay";
 
 // ── Types ──
 
@@ -52,6 +53,8 @@ interface ChatMessage {
   sender: string;
   text: string;
   timestamp: Date;
+  senderId?: string;
+  isLocal?: boolean;
 }
 
 interface RaisedHandState {
@@ -323,6 +326,8 @@ const ParticipantsList = memo(function ParticipantsList({
 const MeetingRoom = () => {
   const [showParticipants, setShowParticipants] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+  const [chatPops, setChatPops] = useState<ChatPopMessage[]>([]);
   const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -336,6 +341,9 @@ const MeetingRoom = () => {
   const [isAudioBlocked, setIsAudioBlocked] = useState(false);
   const [activeSpeaker, setActiveSpeaker] = useState<{name: string; userId: string} | null>(null);
   const activeSpeakerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showChatRef = useRef(showChat);
+  showChatRef.current = showChat;
 
   const screenShareContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
@@ -572,25 +580,79 @@ const MeetingRoom = () => {
     }
   }, [isHandRaised, session?.user?.name, session?.user?.id, localParticipant?.name, localParticipant?.userId]);
 
+  // ── Auto-clear unread chat counter and active chat pops when chat drawer opens ──
+  useEffect(() => {
+    if (showChat) {
+      setUnreadChatCount(0);
+      setChatPops([]);
+    }
+  }, [showChat]);
+
+  const handleDismissChatPop = useCallback((id: string) => {
+    setChatPops((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const handleOpenChatFromPop = useCallback(() => {
+    setShowChat(true);
+    setShowParticipants(false);
+    setUnreadChatCount(0);
+    setChatPops([]);
+  }, []);
+
+  const triggerChatPop = useCallback((msg: ChatMessage) => {
+    const popItem: ChatPopMessage = {
+      id: msg.id || crypto.randomUUID(),
+      sender: msg.sender,
+      text: msg.text,
+      timestamp: msg.timestamp instanceof Date ? msg.timestamp : new Date(),
+      senderId: msg.senderId,
+      isLocal: msg.isLocal,
+    };
+
+    setChatPops((prev) => {
+      if (prev.some((p) => p.id === popItem.id)) return prev;
+      return [...prev.slice(-2), popItem];
+    });
+
+    playChatChime();
+  }, []);
+
   // ── Send chat message ──
   const handleSendChat = useCallback(() => {
     if (!chatInput.trim()) return;
     const userName = session?.user?.name || localParticipant?.name || "Guest";
+    const userId = localParticipant?.userId || String(session?.user?.id || "unknown");
     const textToSend = chatInput.trim();
+    const msgId = crypto.randomUUID();
     setChatInput("");
+
+    const newMsg: ChatMessage = {
+      id: msgId,
+      sender: userName,
+      text: textToSend,
+      timestamp: new Date(),
+      senderId: userId,
+      isLocal: true,
+    };
+
+    // Add locally for the sender immediately
+    setChatMessages((prev) => [...prev, newMsg]);
 
     if (callRef.current) {
       try {
         callRef.current.sendCustomEvent({
           type: "chat_message",
+          id: msgId,
           sender: userName,
+          senderId: userId,
           text: textToSend,
+          timestamp: Date.now(),
         } as any);
       } catch (err) {
         console.error("Failed to send chat:", err);
       }
     }
-  }, [chatInput, session?.user?.name, localParticipant?.name]);
+  }, [chatInput, session?.user?.name, session?.user?.id, localParticipant?.name, localParticipant?.userId]);
 
   // ── Leave Call cleanly ──
   const handleLeaveCallOnly = useCallback(async () => {
@@ -657,16 +719,35 @@ const MeetingRoom = () => {
     if (!call) return;
     const handler = (event: any) => {
       const eventType = event.custom?.type;
-      const senderUserId = event.user?.id || event.user_id || event.custom?.userId || 'unknown';
+      const senderUserId = event.user?.id || event.user_id || event.custom?.userId || event.custom?.senderId || 'unknown';
 
-      if (eventType === "chat_message") {
+      if (eventType === "chat_message" || eventType === "chat-message") {
+        const msgId = event.custom?.id || event.custom?.data?.id || crypto.randomUUID();
+        const sender = event.custom?.sender || event.custom?.data?.senderName || event.user?.name || "Participant";
+        const text = event.custom?.text || event.custom?.data?.text || "";
+        const incomingSenderId = event.custom?.senderId || event.custom?.data?.senderId || senderUserId;
+        const currentUserId = localParticipant?.userId || String(session?.user?.id || "");
+        const isLocal = incomingSenderId === currentUserId;
+
         const incoming: ChatMessage = {
-          id: crypto.randomUUID(),
-          sender: event.custom.sender || event.user?.name || "Unknown",
-          text: event.custom.text || "",
-          timestamp: new Date(),
+          id: msgId,
+          sender,
+          text,
+          timestamp: new Date(event.custom?.timestamp || event.custom?.data?.timestamp || Date.now()),
+          senderId: incomingSenderId,
+          isLocal,
         };
-        setChatMessages((prev) => [...prev, incoming]);
+
+        setChatMessages((prev) => {
+          if (prev.some((m) => m.id === msgId)) return prev;
+          return [...prev, incoming];
+        });
+
+        if (!showChatRef.current) {
+          setUnreadChatCount((prev) => prev + 1);
+        }
+
+        triggerChatPop(incoming);
       } else if (eventType === "hand_raise_state") {
         const isRaised = !!event.custom?.raised;
         const senderName = event.custom?.userName || event.user?.name || "Participant";
@@ -693,7 +774,7 @@ const MeetingRoom = () => {
     return () => {
       call.off("custom", handler);
     };
-  }, [call]);
+  }, [call, localParticipant?.userId, session?.user?.id, triggerChatPop]);
 
   // ── Listen for call.ended event ──
   useEffect(() => {
@@ -951,7 +1032,30 @@ const MeetingRoom = () => {
           </Button>
 
           <button
-            onClick={() => setShowParticipants((prev) => !prev)}
+            onClick={() => {
+              setShowChat((prev) => !prev);
+              if (showParticipants) setShowParticipants(false);
+            }}
+            className={`relative flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
+              showChat
+                ? "bg-[#EF7B55] border-[#EF7B55] text-white"
+                : "bg-white/10 hover:bg-white/20 border-white/15 text-white"
+            }`}
+          >
+            <MessageCircle size={16} />
+            <span className="hidden sm:inline">Chat</span>
+            {unreadChatCount > 0 && !showChat && (
+              <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-red-500 text-white animate-pulse">
+                {unreadChatCount > 99 ? "99+" : unreadChatCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => {
+              setShowParticipants((prev) => !prev);
+              if (showChat) setShowChat(false);
+            }}
             className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
               showParticipants
                 ? "bg-[#EF7B55] border-[#EF7B55] text-white"
@@ -1136,6 +1240,13 @@ const MeetingRoom = () => {
         </div>
       )}
 
+      {/* Floating Chat Pop Notification Overlay */}
+      <ChatPopOverlay
+        pops={chatPops}
+        onDismiss={handleDismissChatPop}
+        onOpenChat={handleOpenChatFromPop}
+      />
+
       {/* Control Dock */}
       <MeetingControlBar
         isMicOff={isMicOff}
@@ -1155,6 +1266,7 @@ const MeetingRoom = () => {
         onSendReaction={handleSendReaction}
         onOpenEndMeetingDialog={() => setIsEndMeetingDialogOpen(true)}
         allowedEmojis={ALLOWED_EMOJIS}
+        unreadChatCount={unreadChatCount}
       />
 
       {/* Leave / End Meeting Dialog */}

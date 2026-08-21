@@ -33,6 +33,7 @@ interface MoreMeetingMenuProps {
   onSendReaction: (emoji: string) => void;
   onOpenEndMeetingDialog: () => void;
   allowedEmojis: string[];
+  unreadChatCount?: number;
 }
 
 export function MoreMeetingMenu({
@@ -44,6 +45,7 @@ export function MoreMeetingMenu({
   onSendReaction,
   onOpenEndMeetingDialog,
   allowedEmojis,
+  unreadChatCount = 0,
 }: MoreMeetingMenuProps) {
   const [isAudioLocked, setIsAudioLocked] = useState(false);
   const [isVideoLocked, setIsVideoLocked] = useState(false);
@@ -170,10 +172,15 @@ export function MoreMeetingMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg hover:shadow-white/10"
+        className="relative flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] hover:-translate-y-1 hover:shadow-lg hover:shadow-white/10"
         title="More Actions"
       >
-        <MoreHorizontal size={20} strokeWidth={2.5} />
+        <div className="relative">
+          <MoreHorizontal size={20} strokeWidth={2.5} />
+          {unreadChatCount > 0 && !showChat && (
+            <span className="absolute -top-1.5 -right-2 w-2.5 h-2.5 rounded-full bg-[#EF7B55] border-2 border-[#1a1c21] animate-pulse" />
+          )}
+        </div>
         <span className="text-[10px] font-bold tracking-wide">More</span>
       </DropdownMenuTrigger>
 
@@ -205,7 +212,13 @@ export function MoreMeetingMenu({
             <MessageCircle className="w-4 h-4 text-sky-400" />
             <span>Chat</span>
           </div>
-          {showChat && <span className="text-[10px] text-sky-400">Active</span>}
+          {unreadChatCount > 0 && !showChat ? (
+            <span className="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-[#EF7B55] text-white animate-pulse">
+              {unreadChatCount > 99 ? "99+" : unreadChatCount}
+            </span>
+          ) : showChat ? (
+            <span className="text-[10px] text-sky-400 font-bold">Active</span>
+          ) : null}
         </DropdownMenuItem>
 
         {/* Reactions Palette inline */}

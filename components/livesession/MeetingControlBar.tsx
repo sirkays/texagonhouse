@@ -1,7 +1,7 @@
 "use client";
 
 import { useCall, useCallStateHooks } from "@stream-io/video-react-sdk";
-import { Mic, MicOff, Video, VideoOff, Monitor, Hand, PhoneOff, Disc } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, Monitor, Hand, PhoneOff, Disc, MessageCircle } from "lucide-react";
 import { useMeetingPermissions } from "@/hooks/useMeetingPermissions";
 import { MoreMeetingMenu } from "./MoreMeetingMenu";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ interface MeetingControlBarProps {
   onSendReaction: (emoji: string) => void;
   onOpenEndMeetingDialog: () => void;
   allowedEmojis: string[];
+  unreadChatCount?: number;
 }
 
 export function MeetingControlBar({
@@ -45,6 +46,7 @@ export function MeetingControlBar({
   onSendReaction,
   onOpenEndMeetingDialog,
   allowedEmojis,
+  unreadChatCount = 0,
 }: MeetingControlBarProps) {
   const call = useCall();
   const { useHasPermissions, useIsCallRecordingInProgress } = useCallStateHooks();
@@ -192,6 +194,32 @@ export function MeetingControlBar({
           </span>
         </button>
 
+        {/* ── Chat Button ── */}
+        <button
+          onClick={() => {
+            setShowChat((prev) => !prev);
+            if (showParticipants) setShowParticipants(false);
+          }}
+          title={showChat ? "Close Chat" : "Open Chat"}
+          className={`relative flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-2xl transition-all duration-300 cursor-pointer shrink-0 min-w-[64px] ${
+            showChat
+              ? "bg-[#EF7B55] hover:bg-[#e0663f] text-white shadow-lg shadow-[#EF7B55]/30 border border-[#EF7B55]"
+              : "bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 hover:text-white hover:shadow-white/10"
+          }`}
+        >
+          <div className="relative">
+            <MessageCircle size={20} strokeWidth={2.5} />
+            {unreadChatCount > 0 && !showChat && (
+              <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-extrabold flex items-center justify-center shadow-lg animate-pulse border-2 border-[#1a1c21]">
+                {unreadChatCount > 99 ? "99+" : unreadChatCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-bold tracking-wide">
+            Chat
+          </span>
+        </button>
+
         {/* ── More (...) Menu ── */}
         <MoreMeetingMenu
           participantCount={participantCount}
@@ -202,6 +230,7 @@ export function MeetingControlBar({
           onSendReaction={onSendReaction}
           onOpenEndMeetingDialog={onOpenEndMeetingDialog}
           allowedEmojis={allowedEmojis}
+          unreadChatCount={unreadChatCount}
         />
 
         {/* Divider */}
