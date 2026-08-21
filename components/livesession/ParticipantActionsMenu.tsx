@@ -44,65 +44,131 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
   }
 
   const participantName = participant.name || participant.userId || "Participant";
-  const hasAudio = !!participant.audioStream;
-  const hasVideo = !!participant.videoStream;
-
   const isSharingScreen = !!participant.screenShareStream;
   const isPinned = !!participant.isPinned;
 
-  // Toggle mic: disable if on, enable if off
+  const customOverrides = (call.state?.custom as any)?.user_overrides?.[participant.userId];
+  const roomAudioLocked = !!call.state?.custom?.is_audio_locked;
+  const roomVideoLocked = !!call.state?.custom?.is_video_locked;
+
+  // Determine if audio/video is allowed for this specific participant
+  const isAudioAllowed =
+    customOverrides?.audio !== undefined
+      ? !!customOverrides.audio
+      : !roomAudioLocked;
+
+  const isVideoAllowed =
+    customOverrides?.video !== undefined
+      ? !!customOverrides.video
+      : !roomVideoLocked;
+
+  // Toggle mic permission for individual participant
   const handleToggleMic = async () => {
     if (!call) return;
     setIsLoading(true);
+    const nextAllowed = !isAudioAllowed;
     try {
-      if (hasAudio) {
+      if (!nextAllowed) {
         // Disable: mute + revoke permission
         await call.muteUser(participant.userId, "audio");
-        await (call as any).updateUserPermissions({
-          user_id: participant.userId,
-          revoke_permissions: ["send-audio"],
-        });
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: participant.userId,
+            revoke_permissions: ["send-audio"],
+          });
+        } catch {}
         toast.success(`Disabled mic for ${participantName}`);
       } else {
-        // Enable: grant permission back
-        await (call as any).updateUserPermissions({
-          user_id: participant.userId,
-          grant_permissions: ["send-audio"],
-        });
-        toast.success(`Enabled mic for ${participantName}`);
+        // Enable: grant permission
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: participant.userId,
+            grant_permissions: ["send-audio"],
+          });
+        } catch {}
+        toast.success(`Enabled mic for ${participantName} (they can now unmute)`);
       }
+
+      // 1. Send direct custom event to notify the participant immediately
+      await call.sendCustomEvent({
+        type: "user_permission_override",
+        targetUserId: participant.userId,
+        audioAllowed: nextAllowed,
+      } as any);
+
+      // 2. Persist in room custom state
+      const currentOverrides = (call.state?.custom as any)?.user_overrides || {};
+      await call.update({
+        custom: {
+          ...(call.state?.custom || {}),
+          user_overrides: {
+            ...currentOverrides,
+            [participant.userId]: {
+              ...(currentOverrides[participant.userId] || {}),
+              audio: nextAllowed,
+            },
+          },
+        },
+      });
     } catch (err: any) {
       console.error("[Moderation] Mic toggle error:", err);
-      toast.error(err?.message || "Unable to toggle mic.");
+      toast.error(err?.message || "Unable to toggle mic permission.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Toggle camera: disable if on, enable if off
+  // Toggle camera permission for individual participant
   const handleToggleCamera = async () => {
     if (!call) return;
     setIsLoading(true);
+    const nextAllowed = !isVideoAllowed;
     try {
-      if (hasVideo) {
+      if (!nextAllowed) {
         // Disable: mute + revoke permission
         await call.muteUser(participant.userId, "video");
-        await (call as any).updateUserPermissions({
-          user_id: participant.userId,
-          revoke_permissions: ["send-video"],
-        });
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: participant.userId,
+            revoke_permissions: ["send-video"],
+          });
+        } catch {}
         toast.success(`Disabled camera for ${participantName}`);
       } else {
-        // Enable: grant permission back
-        await (call as any).updateUserPermissions({
-          user_id: participant.userId,
-          grant_permissions: ["send-video"],
-        });
-        toast.success(`Enabled camera for ${participantName}`);
+        // Enable: grant permission
+        try {
+          await (call as any).updateUserPermissions({
+            user_id: participant.userId,
+            grant_permissions: ["send-video"],
+          });
+        } catch {}
+        toast.success(`Enabled camera for ${participantName} (they can now enable camera)`);
       }
+
+      // 1. Send direct custom event to notify the participant immediately
+      await call.sendCustomEvent({
+        type: "user_permission_override",
+        targetUserId: participant.userId,
+        videoAllowed: nextAllowed,
+      } as any);
+
+      // 2. Persist in room custom state
+      const currentOverrides = (call.state?.custom as any)?.user_overrides || {};
+      await call.update({
+        custom: {
+          ...(call.state?.custom || {}),
+          user_overrides: {
+            ...currentOverrides,
+            [participant.userId]: {
+              ...(currentOverrides[participant.userId] || {}),
+              video: nextAllowed,
+            },
+          },
+        },
+      });
     } catch (err: any) {
       console.error("[Moderation] Camera toggle error:", err);
-      toast.error(err?.message || "Unable to toggle camera.");
+      toast.error(err?.message || "Unable to toggle camera permission.");
     } finally {
       setIsLoading(false);
     }
@@ -205,11 +271,11 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
               onClick={handleToggleMic}
               disabled={isLoading}
               className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer ${
-                hasAudio ? "text-amber-400" : "text-emerald-300"
+                isAudioAllowed ? "text-amber-400" : "text-emerald-300"
               }`}
             >
-              {hasAudio ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
-              <span>{hasAudio ? "Disable Mic" : "Enable Mic"}</span>
+              {isAudioAllowed ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              <span>{isAudioAllowed ? "Disable Mic" : "Enable Mic"}</span>
             </DropdownMenuItem>
           )}
 
@@ -219,11 +285,11 @@ export function ParticipantActionsMenu({ participant }: ParticipantActionsMenuPr
               onClick={handleToggleCamera}
               disabled={isLoading}
               className={`flex items-center gap-2 px-2.5 py-2 text-xs font-medium rounded-lg hover:bg-white/10 cursor-pointer ${
-                hasVideo ? "text-amber-400" : "text-emerald-300"
+                isVideoAllowed ? "text-amber-400" : "text-emerald-300"
               }`}
             >
-              {hasVideo ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
-              <span>{hasVideo ? "Disable Camera" : "Enable Camera"}</span>
+              {isVideoAllowed ? <VideoOff className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
+              <span>{isVideoAllowed ? "Disable Camera" : "Enable Camera"}</span>
             </DropdownMenuItem>
           )}
 

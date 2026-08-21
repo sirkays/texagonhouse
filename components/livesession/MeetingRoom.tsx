@@ -402,18 +402,24 @@ const ParticipantsList = memo(function ParticipantsList({
       )}
 
       {/* Search Filter */}
-      {uniqueParticipants.length > 3 && (
-        <div className="relative mb-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search participants..."
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-[#EF7B55]/50 focus:ring-1 focus:ring-[#EF7B55]/20 transition"
-          />
-        </div>
-      )}
+      <div className="relative mb-1">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search participants..."
+          className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-zinc-500 outline-none focus:border-[#EF7B55]/50 focus:ring-1 focus:ring-[#EF7B55]/20 transition"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs cursor-pointer"
+          >
+            ✕
+          </button>
+        )}
+      </div>
 
       {/* In Call Header */}
       <div className="px-1 py-0.5 flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-zinc-400">
@@ -544,22 +550,31 @@ const MeetingRoom = () => {
 
   const [isAudioLocked, setIsAudioLocked] = useState(false);
   const [isVideoLocked, setIsVideoLocked] = useState(false);
+  const [individualAudioAllowed, setIndividualAudioAllowed] = useState<boolean | null>(null);
+  const [individualVideoAllowed, setIndividualVideoAllowed] = useState<boolean | null>(null);
   const isAudioLockedRef = useRef(isAudioLocked);
   isAudioLockedRef.current = isAudioLocked;
   const isVideoLockedRef = useRef(isVideoLocked);
   isVideoLockedRef.current = isVideoLocked;
 
-  // Synchronize lock state from call custom data
+  // Synchronize lock state and individual override from call custom data
   useEffect(() => {
     if (!call) return;
-    const customData = call.state.custom || {};
+    const customData = (call.state.custom as any) || {};
     if (customData.is_audio_locked !== undefined) {
       setIsAudioLocked(!!customData.is_audio_locked);
     }
     if (customData.is_video_locked !== undefined) {
       setIsVideoLocked(!!customData.is_video_locked);
     }
-  }, [call, call?.state?.custom]);
+
+    const currentUserId = localParticipant?.userId || String(session?.user?.id || "");
+    const myOverride = customData.user_overrides?.[currentUserId];
+    if (myOverride) {
+      if (myOverride.audio !== undefined) setIndividualAudioAllowed(!!myOverride.audio);
+      if (myOverride.video !== undefined) setIndividualVideoAllowed(!!myOverride.video);
+    }
+  }, [call, call?.state?.custom, localParticipant?.userId, session?.user?.id]);
 
   // ── Refs for stability ──
   const callRef = useRef(call);
@@ -1056,7 +1071,12 @@ const MeetingRoom = () => {
 
   const handleToggleMic = useCallback(async () => {
     if (!callRef.current || micPendingRef.current) return;
-    if (isAudioLocked && !isHost) {
+    const isLocked =
+      !isHost &&
+      (individualAudioAllowed === false ||
+        (isAudioLocked && individualAudioAllowed !== true));
+
+    if (isLocked) {
       toast.error("Microphones are locked by the host");
       return;
     }
@@ -1070,11 +1090,16 @@ const MeetingRoom = () => {
     } finally {
       micPendingRef.current = false;
     }
-  }, [isMicOff, isCamOff, persistCurrentState, isAudioLocked, isHost]);
+  }, [isMicOff, isCamOff, persistCurrentState, isAudioLocked, isHost, individualAudioAllowed]);
 
   const handleToggleCam = useCallback(async () => {
     if (!callRef.current || camPendingRef.current) return;
-    if (isVideoLocked && !isHost) {
+    const isLocked =
+      !isHost &&
+      (individualVideoAllowed === false ||
+        (isVideoLocked && individualVideoAllowed !== true));
+
+    if (isLocked) {
       toast.error("Cameras are locked by the host");
       return;
     }
@@ -1088,7 +1113,7 @@ const MeetingRoom = () => {
     } finally {
       camPendingRef.current = false;
     }
-  }, [isMicOff, isCamOff, persistCurrentState, isVideoLocked, isHost]);
+  }, [isMicOff, isCamOff, persistCurrentState, isVideoLocked, isHost, individualVideoAllowed]);
 
   // ── Listen for custom events (chat, hand raises, room policy, chat sync) ──
   useEffect(() => {
@@ -1221,13 +1246,42 @@ const MeetingRoom = () => {
         setIsVideoLocked(videoLocked);
 
         if (!isHost) {
-          if (audioLocked) {
+          if (audioLocked && individualAudioAllowed !== true) {
             callRef.current?.microphone?.disable?.().catch(() => {});
             toast.info("Microphones have been locked by the host");
           }
-          if (videoLocked) {
+          if (videoLocked && individualVideoAllowed !== true) {
             callRef.current?.camera?.disable?.().catch(() => {});
             toast.info("Cameras have been locked by the host");
+          }
+        }
+      } else if (eventType === "user_permission_override") {
+        const targetUserId = event.custom?.targetUserId;
+        const currentUserId = localParticipant?.userId || String(session?.user?.id || "");
+        if (targetUserId === currentUserId) {
+          if (event.custom?.audioAllowed !== undefined) {
+            const allowed = !!event.custom.audioAllowed;
+            setIndividualAudioAllowed(allowed);
+            if (allowed) {
+              setIsAudioLocked(false);
+              toast.success("The host has enabled your microphone. You can now unmute.");
+            } else {
+              setIsAudioLocked(true);
+              callRef.current?.microphone?.disable?.().catch(() => {});
+              toast.error("Your microphone has been disabled by the host.");
+            }
+          }
+          if (event.custom?.videoAllowed !== undefined) {
+            const allowed = !!event.custom.videoAllowed;
+            setIndividualVideoAllowed(allowed);
+            if (allowed) {
+              setIsVideoLocked(false);
+              toast.success("The host has enabled your camera. You can now start video.");
+            } else {
+              setIsVideoLocked(true);
+              callRef.current?.camera?.disable?.().catch(() => {});
+              toast.error("Your camera has been disabled by the host.");
+            }
           }
         }
       }
@@ -1236,7 +1290,7 @@ const MeetingRoom = () => {
     return () => {
       call.off("custom", handler);
     };
-  }, [call, localParticipant?.userId, session?.user?.id, triggerChatPop, isHost]);
+  }, [call, localParticipant?.userId, session?.user?.id, triggerChatPop, isHost, individualAudioAllowed, individualVideoAllowed]);
 
   // ── Listen for call.ended event ──
   useEffect(() => {
